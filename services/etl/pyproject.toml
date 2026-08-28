@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "campaigniq-etl"
+version = "0.1.0"
+description = "Local CSV ETL pipeline for CampaignIQ"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "pandas>=2.2,<3",
+  "psycopg[binary]>=3.2,<4",
+  "python-dotenv>=1.0,<2",
+  "SQLAlchemy>=2.0,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2,<2",
+  "mypy>=1.14,<2",
+  "pandas-stubs>=2.2,<3",
+  "pytest>=8.3,<9",
+  "pytest-cov>=6,<7",
+  "ruff>=0.9,<1",
+]
+
+[project.scripts]
+campaigniq-etl = "campaigniq_etl.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+markers = ["integration: requires the local PostgreSQL database"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "tests"]

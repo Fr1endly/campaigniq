@@ -13,15 +13,15 @@ Login -> dashboard -> upload CSV -> ETL processing -> load/reject summary
       -> dashboard refresh
 ```
 
-The current repository implements the authenticated local analytics dashboard.
-CSV ingestion, the Python ETL service, import screens, AWS infrastructure, and
-ML are later milestones. Do not introduce AWS or ML before the local ingestion
-workflow works end to end.
+The current repository implements the authenticated local analytics dashboard
+and the local Python CSV ETL service. Import APIs/screens and local object
+storage are next; AWS infrastructure and ML are later milestones.
 
 ## Project Documents
 
 - `docs/PROJECT_PLAN.md` is the approved product, architecture, and roadmap.
 - `docs/MILESTONE_1.md` is the dated record of the completed dashboard milestone.
+- `docs/MILESTONE_2.md` is the dated record of the completed local ETL milestone.
 - `README.md` is the concise setup and repository entry point.
 
 Keep implementation and these documents aligned when milestone scope or
@@ -34,7 +34,8 @@ architecture changes.
 - API: NestJS, TypeScript, Better Auth
 - Database: PostgreSQL 17, Drizzle ORM, committed SQL migrations
 - Validation/contracts: Zod
-- Tests: Vitest and Playwright
+- ETL: Python 3.12, Pandas, SQLAlchemy, psycopg
+- Tests: Vitest, pytest, and Playwright
 - Local infrastructure: Docker Compose
 
 TanStack Start is intentional. Do not replace it with Next.js or add Next.js
@@ -47,7 +48,7 @@ apps/web/           TanStack Start UI, SSR loaders, API proxy, Playwright tests
 apps/api/           NestJS auth, analytics endpoints, seed, integration tests
 packages/contracts/ Shared Zod request/response contracts and TypeScript types
 packages/database/  Drizzle client, schemas, migrations, and migration runner
-services/etl/       Reserved for the future Python ETL service
+services/etl/       Python ETL package, fixtures, and PostgreSQL integration tests
 ```
 
 ## Local Setup
@@ -56,11 +57,15 @@ Requirements:
 
 - Node.js 22.22.3 or newer
 - npm 10
+- Python 3.12 or newer
 - Docker with Docker Compose
 
 ```bash
 cp .env.example .env
 npm install
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e './services/etl[dev]'
 docker compose up -d
 npm run db:migrate
 npm run db:seed
@@ -99,17 +104,21 @@ npm run build        # production builds for all workspaces
 npm run db:generate  # generate a migration after a Drizzle schema change
 npm run db:migrate   # apply committed migrations
 npm run db:seed      # create deterministic demo data
+npm run etl:load -- --file <csv> --organization-id <uuid>
+npm run etl:test     # ETL unit and PostgreSQL integration tests
 ```
 
-Database integration tests require the local PostgreSQL service. Playwright
-requires PostgreSQL, seeded data, and the API/web services; its configuration
-can start or reuse the application servers.
+Database integration tests, including the ETL integration tests, require the
+local PostgreSQL service. Playwright requires PostgreSQL, seeded data, and the
+API/web services; its configuration can start or reuse the application servers.
 
 ## Architecture Boundaries
 
 - The web app owns presentation, routing, URL search state, and SSR data loading.
-- NestJS owns authentication, organization resolution, analytics rules, and all
-  database access.
+- NestJS owns authentication, organization resolution, analytics rules, and
+  application-facing database access.
+- The Python ETL owns organization-scoped ingestion writes and never serves
+  browser requests.
 - The browser uses the TanStack Start same-origin `/api` proxy. Do not connect
   browser components directly to PostgreSQL or trust client-supplied tenant IDs.
 - Shared wire formats belong in `packages/contracts` and must be validated at
@@ -176,29 +185,17 @@ can start or reuse the application servers.
 
 ## Next Approved Milestone
 
-Build the local ETL and import workflow before AWS:
+Build the import product experience on the completed local ETL before AWS:
 
 ```text
-CSV -> extract -> validate -> transform -> deduplicate -> transactional load
-    -> import statistics and data-quality issues -> dashboard refresh
+create import -> presigned local upload -> process with Python ETL
+    -> import/data-quality screens -> dashboard refresh
 ```
 
-Use Python, Pandas, SQLAlchemy/psycopg, and pytest under `services/etl`. The
-canonical CSV columns are:
-
-```text
-date,campaign_id,campaign_name,channel,impressions,clicks,conversions,spend,revenue
-```
-
-Validation must cover missing campaign IDs, invalid dates, negative metrics,
-clicks greater than impressions, conversions greater than clicks, and duplicate
-`date + campaign_id + channel` records. Duplicate rows within an input are
-rejected; warehouse loads should be idempotent through the existing natural
-keys/upsert strategy.
-
-After the ETL core and fixtures are tested, add import API endpoints and the
-Imports/Data Quality UI. Use local S3-compatible object storage for presigned
-uploads before swapping it for AWS S3 and Lambda. ML remains last.
+Add organization-isolated import endpoints, local S3-compatible object storage
+with direct presigned uploads, and Imports/Data Quality UI routes. Reuse the ETL
+processor with API-created import runs and refresh analytics after completed
+loads. AWS remains Phase 4 and ML remains last.
 
 ## Git
 

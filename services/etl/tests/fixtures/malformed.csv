@@ -1,0 +1,9 @@
+date,campaign_id,campaign_name,channel,impressions,clicks,conversions,spend,revenue
+2026-08-01,,Missing ID,Google,100,10,1,12.00,24.00
+08/02/2026,CAMP002,Bad Date,Meta,100,10,1,12.00,24.00
+2026-08-03,CAMP003,Bad Integer,Google,100.0,10,1,12.00,24.00
+2026-08-04,CAMP004,Negative Spend,Meta,100,10,1,-12.00,24.00
+2026-08-05,CAMP005,Too Many Clicks,Google,100,101,1,12.00,24.00
+2026-08-06,CAMP006,Too Many Conversions,Meta,100,10,11,12.00,24.00
+2026-08-07,CAMP007,Bad Decimal,Google,100,10,1,12.345,24.00
+2026-08-08,CAMP008,Multiple Problems,Meta,-100,-20,-10,12.00,24.00

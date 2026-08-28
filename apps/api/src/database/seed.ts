@@ -179,7 +179,7 @@ async function seedAnalytics() {
     .delete(dataQualityIssues)
     .where(eq(dataQualityIssues.importRunId, IMPORT_RUN_ID));
   await databaseConnection.db.insert(dataQualityIssues).values([
-    { importRunId: IMPORT_RUN_ID, issueType: 'missing_campaign_id', field: 'campaign_id', count: 18 },
+    { importRunId: IMPORT_RUN_ID, issueType: 'missing_required_value', field: 'campaign_id', count: 18 },
     { importRunId: IMPORT_RUN_ID, issueType: 'duplicate_record', field: null, count: 12 },
     { importRunId: IMPORT_RUN_ID, issueType: 'clicks_exceed_impressions', field: 'clicks', count: 8 },
   ]);

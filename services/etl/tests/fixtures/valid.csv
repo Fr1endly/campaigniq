@@ -1,0 +1,4 @@
+date,campaign_id,campaign_name,channel,impressions,clicks,conversions,spend,revenue,source_note
+2026-08-01,CAMP001,Summer Sale,Google,15400,423,38,812.50,2940.00,launch
+2026-08-02,CAMP001,Summer Sale,Google,16120,451,42,840.20,3150.00,launch
+2026-08-01,CAMP002,Retargeting,Meta,9800,281,31,540.12,2210.00,always-on

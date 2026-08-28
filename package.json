@@ -8,15 +8,20 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "turbo run build",
+    "build": "turbo run build && npm run etl:build",
     "dev": "turbo run dev --parallel",
-    "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
+    "lint": "turbo run lint && npm run etl:lint",
+    "typecheck": "turbo run typecheck && npm run etl:typecheck",
+    "test": "turbo run test && npm run etl:test",
     "test:e2e": "npm run test:e2e --workspace @campaign-iq/web",
     "db:generate": "npm run db:generate --workspace @campaign-iq/database",
     "db:migrate": "npm run db:migrate --workspace @campaign-iq/database",
-    "db:seed": "npm run db:seed --workspace @campaign-iq/api"
+    "db:seed": "npm run db:seed --workspace @campaign-iq/api",
+    "etl:build": "python3 -m build services/etl",
+    "etl:lint": "python3 -m ruff check services/etl",
+    "etl:typecheck": "python3 -m mypy services/etl/src services/etl/tests",
+    "etl:test": "python3 -m pytest services/etl",
+    "etl:load": "python3 -m campaigniq_etl load"
   },
   "devDependencies": {
     "turbo": "^2.5.6"

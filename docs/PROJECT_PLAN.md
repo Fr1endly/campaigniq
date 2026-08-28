@@ -6,8 +6,9 @@ This document preserves the approved CampaignIQ product and engineering plan.
 TanStack Start is the frontend framework; references to Next.js in the earliest
 design draft were superseded before implementation.
 
-Milestone 1, the authenticated local analytics dashboard, is complete. The next
-approved milestone is the local CSV ETL and import workflow.
+Milestones 1 and 2 are complete: the repository provides the authenticated local
+analytics dashboard and the local CSV ETL pipeline. The next approved milestone
+is the import product experience.
 
 ## Product Vision
 
@@ -74,8 +75,9 @@ Local Development
 
 NestJS remains an explicit backend rather than placing business logic in the
 frontend framework. TanStack Start owns routing, rendering, and presentation;
-NestJS owns authentication, tenant resolution, analytics rules, and database
-access.
+NestJS owns authentication, tenant resolution, analytics rules, and
+application-facing database access. The Python ETL owns organization-scoped
+warehouse ingestion writes.
 
 ## Target Architecture
 
@@ -339,7 +341,7 @@ campaign-iq/
 
 See [MILESTONE_1.md](./MILESTONE_1.md) for the delivery record.
 
-### Phase 2: Local ETL - Next
+### Phase 2: Local ETL - Complete
 
 - Scaffold `services/etl` as a tested Python package.
 - Extract canonical CSVs in bounded chunks.
@@ -350,7 +352,9 @@ See [MILESTONE_1.md](./MILESTONE_1.md) for the delivery record.
 - Record import statistics and data-quality issues.
 - Provide valid, malformed, duplicate, and incremental-load fixtures.
 
-### Phase 3: Import Product Experience
+See [MILESTONE_2.md](./MILESTONE_2.md) for the delivery record.
+
+### Phase 3: Import Product Experience - Next
 
 - Create import APIs.
 - Add direct presigned uploads against local object storage.

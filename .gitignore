@@ -10,4 +10,12 @@ test-results/
 *.log
 *.tsbuildinfo
 .DS_Store
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.coverage
 apps/web/src/routeTree.gen.ts
