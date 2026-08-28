@@ -2,6 +2,12 @@
 
 CampaignIQ is a marketing analytics SaaS demo built as a real product around a warehouse-oriented data model. The current milestone provides authenticated, organization-isolated dashboards backed by deterministic PostgreSQL data.
 
+## Project documentation
+
+- [Approved project plan](./docs/PROJECT_PLAN.md)
+- [Milestone 1 delivery summary](./docs/MILESTONE_1.md)
+- [Repository agent guide](./AGENTS.md)
+
 ## Stack
 
 - TanStack Start, React, TypeScript, Tailwind CSS, and shadcn/ui
