@@ -1,0 +1,5 @@
+.output/
+dist/
+playwright-report/
+src/routeTree.gen.ts
+test-results/
