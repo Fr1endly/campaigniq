@@ -1,5 +1,10 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const webPort = Number(process.env.E2E_WEB_PORT ?? 3000)
+const apiPort = Number(process.env.E2E_API_PORT ?? 3001)
+const webOrigin = `http://localhost:${webPort}`
+const apiOrigin = `http://localhost:${apiPort}`
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 30_000,
@@ -7,7 +12,7 @@ export default defineConfig({
   fullyParallel: false,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: webOrigin,
     channel: 'chrome',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
@@ -33,14 +38,24 @@ export default defineConfig({
     {
       command: 'npm run dev --workspace @campaign-iq/api',
       cwd: '../..',
-      url: 'http://localhost:3001/api/health',
+      url: `${apiOrigin}/api/health`,
+      env: {
+        ...process.env,
+        API_PORT: String(apiPort),
+        WEB_ORIGIN: webOrigin,
+        BETTER_AUTH_URL: webOrigin,
+      },
       reuseExistingServer: true,
       timeout: 60_000,
     },
     {
-      command: 'npm run dev --workspace @campaign-iq/web',
+      command: `npm run dev --workspace @campaign-iq/web -- --port ${webPort}`,
       cwd: '../..',
-      url: 'http://localhost:3000/login',
+      url: `${webOrigin}/login`,
+      env: {
+        ...process.env,
+        API_INTERNAL_URL: apiOrigin,
+      },
       reuseExistingServer: true,
       timeout: 60_000,
     },

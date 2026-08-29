@@ -7,6 +7,10 @@ import {
   campaignListResponseSchema,
   dashboardQuerySchema,
   dashboardSummarySchema,
+  importIssuesResponseSchema,
+  importListQuerySchema,
+  importListResponseSchema,
+  importRunSchema,
   sessionResponseSchema,
 } from '@campaign-iq/contracts'
 
@@ -76,4 +80,32 @@ export const getCampaignDetailFn = createServerFn({ method: 'GET' })
       `/api/campaigns/${data.id}?range=${data.range}`,
     )
     return parseApiResponse(response, campaignDetailResponseSchema)
+  })
+
+export const getImportsFn = createServerFn({ method: 'GET' })
+  .validator(importListQuerySchema)
+  .handler(async ({ data }) => {
+    const params = new URLSearchParams({
+      status: data.status,
+      page: String(data.page),
+      pageSize: String(data.pageSize),
+    })
+    const response = await apiRequest(`/api/imports?${params}`)
+    return parseApiResponse(response, importListResponseSchema)
+  })
+
+const importIdInputSchema = z.object({ id: z.string().uuid() })
+
+export const getImportFn = createServerFn({ method: 'GET' })
+  .validator(importIdInputSchema)
+  .handler(async ({ data }) => {
+    const response = await apiRequest(`/api/imports/${data.id}`)
+    return parseApiResponse(response, importRunSchema)
+  })
+
+export const getImportIssuesFn = createServerFn({ method: 'GET' })
+  .validator(importIdInputSchema)
+  .handler(async ({ data }) => {
+    const response = await apiRequest(`/api/imports/${data.id}/issues`)
+    return parseApiResponse(response, importIssuesResponseSchema)
   })

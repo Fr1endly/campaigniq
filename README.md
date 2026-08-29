@@ -1,12 +1,13 @@
 # CampaignIQ
 
-CampaignIQ is a marketing analytics SaaS demo built as a real product around a warehouse-oriented data model. The current milestone provides authenticated, organization-isolated dashboards and a tested local CSV ETL pipeline backed by PostgreSQL.
+CampaignIQ is a marketing analytics SaaS demo built as a real product around a warehouse-oriented data model. The current product provides authenticated dashboards, direct CSV uploads to local S3-compatible storage, asynchronous Python ETL processing, import history, and data-quality reporting.
 
 ## Project documentation
 
 - [Approved project plan](./docs/PROJECT_PLAN.md)
 - [Milestone 1 delivery summary](./docs/MILESTONE_1.md)
 - [Milestone 2 delivery summary](./docs/MILESTONE_2.md)
+- [Milestone 3 delivery summary](./docs/MILESTONE_3.md)
 - [Repository agent guide](./AGENTS.md)
 
 ## Stack
@@ -14,6 +15,7 @@ CampaignIQ is a marketing analytics SaaS demo built as a real product around a w
 - TanStack Start, React, TypeScript, Tailwind CSS, and shadcn/ui
 - NestJS with Better Auth
 - PostgreSQL with Drizzle ORM and committed SQL migrations
+- MinIO for local S3-compatible direct uploads
 - Python, Pandas, SQLAlchemy, and psycopg for local ETL
 - npm workspaces and Turborepo
 - Vitest, pytest, and Playwright
@@ -34,7 +36,8 @@ npm run db:seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). The MinIO console is
+available at [http://localhost:9001](http://localhost:9001) for local inspection.
 
 Demo credentials:
 
@@ -75,13 +78,15 @@ date,campaign_id,campaign_name,channel,impressions,clicks,conversions,spend,reve
 Browser
   └─ TanStack Start :3000
        ├─ SSR route loaders
+       ├─ presigned PUT → MinIO :9000
        └─ same-origin /api proxy
             └─ NestJS :3001
                  ├─ Better Auth session + organization guard
-                 ├─ analytics REST API
+                 ├─ analytics and import REST APIs
+                 ├─ local ETL dispatch
                  └─ Drizzle → PostgreSQL
 
-Canonical CSV → Python ETL → PostgreSQL warehouse and import metadata
+MinIO raw object → Python ETL → PostgreSQL warehouse and import metadata
 ```
 
 TanStack Start owns presentation, routing, and SSR. NestJS owns authentication,
@@ -98,6 +103,12 @@ GET /api/session
 GET /api/dashboard/summary?range=7d|30d|90d
 GET /api/campaigns?range=&search=&channel=&sort=&order=&page=&pageSize=
 GET /api/campaigns/:id?range=7d|30d|90d
+POST /api/imports
+GET /api/imports?status=&page=&pageSize=
+GET /api/imports/:id
+POST /api/imports/:id/process
+POST /api/imports/:id/upload-failed
+GET /api/imports/:id/issues
 ```
 
 Authentication endpoints are mounted under `/api/auth/*`.
@@ -115,5 +126,5 @@ services/
   etl/        Chunked Python CSV validation and warehouse loading
 ```
 
-Import APIs/pages, object storage, AWS infrastructure, data-quality reporting UI,
-and predictive insights are intentionally deferred to later milestones.
+AWS infrastructure and predictive insights remain later milestones. Phase 4 will
+replace local MinIO and API process dispatch with S3 event processing in Lambda.

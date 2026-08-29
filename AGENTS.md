@@ -13,15 +13,16 @@ Login -> dashboard -> upload CSV -> ETL processing -> load/reject summary
       -> dashboard refresh
 ```
 
-The current repository implements the authenticated local analytics dashboard
-and the local Python CSV ETL service. Import APIs/screens and local object
-storage are next; AWS infrastructure and ML are later milestones.
+The current repository implements the authenticated analytics dashboard, local
+Python CSV ETL, direct MinIO uploads, import APIs/screens, and data-quality
+reporting. AWS infrastructure is next; ML remains a later milestone.
 
 ## Project Documents
 
 - `docs/PROJECT_PLAN.md` is the approved product, architecture, and roadmap.
 - `docs/MILESTONE_1.md` is the dated record of the completed dashboard milestone.
 - `docs/MILESTONE_2.md` is the dated record of the completed local ETL milestone.
+- `docs/MILESTONE_3.md` is the dated record of the completed import-product milestone.
 - `README.md` is the concise setup and repository entry point.
 
 Keep implementation and these documents aligned when milestone scope or
@@ -37,6 +38,7 @@ architecture changes.
 - ETL: Python 3.12, Pandas, SQLAlchemy, psycopg
 - Tests: Vitest, pytest, and Playwright
 - Local infrastructure: Docker Compose
+- Local object storage: MinIO (S3-compatible)
 
 TanStack Start is intentional. Do not replace it with Next.js or add Next.js
 API routes.
@@ -78,6 +80,8 @@ Services:
 - API: `http://localhost:3001`
 - API health: `http://localhost:3001/api/health`
 - PostgreSQL: `localhost:5432`
+- MinIO API: `http://localhost:9000`
+- MinIO console: `http://localhost:9001`
 
 Seeded demo login:
 
@@ -185,17 +189,16 @@ API/web services; its configuration can start or reuse the application servers.
 
 ## Next Approved Milestone
 
-Build the import product experience on the completed local ETL before AWS:
+Deploy the completed local product architecture to AWS:
 
 ```text
-create import -> presigned local upload -> process with Python ETL
-    -> import/data-quality screens -> dashboard refresh
+S3 direct upload -> object-created event -> Lambda Python ETL
+    -> RDS PostgreSQL -> existing import/data-quality/analytics product
 ```
 
-Add organization-isolated import endpoints, local S3-compatible object storage
-with direct presigned uploads, and Imports/Data Quality UI routes. Reuse the ETL
-processor with API-created import runs and refresh analytics after completed
-loads. AWS remains Phase 4 and ML remains last.
+Add CloudFormation, least-privilege IAM, deployment configuration, monitoring,
+and failure handling. Preserve the current import API and ETL contracts while
+replacing local MinIO and API process dispatch. ML remains last.
 
 ## Git
 

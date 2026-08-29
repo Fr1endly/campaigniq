@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   formatCurrency,
   formatDate,
+  formatDuration,
   formatNumber,
   formatPercent,
   formatRatio,
@@ -19,5 +20,12 @@ describe('formatters', () => {
     expect(formatPercent(null)).toBe('—')
     expect(formatRatio(5.463)).toBe('5.46x')
     expect(formatDate('2026-08-27', { year: 'numeric' })).toBe('Aug 27, 2026')
+  })
+
+  it('formats ETL durations without losing short-run precision', () => {
+    expect(formatDuration(null)).toBe('—')
+    expect(formatDuration(420)).toBe('420 ms')
+    expect(formatDuration(12_450)).toBe('12.4 s')
+    expect(formatDuration(75_000)).toBe('1m 15s')
   })
 })

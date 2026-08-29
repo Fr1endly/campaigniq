@@ -1,11 +1,14 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { resolve } from 'node:path'
 
 const email = process.env.DEMO_USER_EMAIL ?? 'demo@campaigniq.local'
 const password = process.env.DEMO_USER_PASSWORD ?? 'CampaignIQ2026!'
 
 async function waitForHydration(page: Page) {
-  await expect(page.locator('html')).toHaveAttribute('data-hydrated', 'true')
+  await expect(page.locator('html')).toHaveAttribute('data-hydrated', 'true', {
+    timeout: 30_000,
+  })
 }
 
 async function signIn(page: Page) {
@@ -91,4 +94,56 @@ test('filters campaigns and opens campaign details', async ({ page }) => {
     page.locator('[data-testid="performance-chart"] svg'),
   ).toBeVisible()
   await expect(page.locator('tbody tr')).toHaveCount(30)
+})
+
+test('uploads a CSV, processes it, and exposes its quality report', async ({
+  page,
+}) => {
+  test.setTimeout(60_000)
+  await signIn(page)
+  const mobileMenu = page.getByRole('button', { name: 'Open navigation' })
+  if (await mobileMenu.isVisible()) await mobileMenu.click()
+  await page.getByRole('link', { name: 'Imports' }).click()
+  await expect(page.getByRole('heading', { name: 'Imports' })).toBeVisible()
+
+  await page
+    .getByLabel('Choose CSV file')
+    .setInputFiles(
+      resolve(
+        import.meta.dirname,
+        '../../../services/etl/tests/fixtures/duplicate.csv',
+      ),
+    )
+  await page.getByRole('button', { name: 'Upload and process' }).click()
+  const uploadPanel = page.getByRole('region', {
+    name: 'Upload campaign data',
+  })
+  await expect(uploadPanel.getByText('Completed', { exact: true })).toBeVisible(
+    {
+      timeout: 30_000,
+    },
+  )
+  await expect(uploadPanel.getByText(/Loaded 2 rows; rejected 1/)).toBeVisible()
+
+  const completedRow = page
+    .getByRole('row')
+    .filter({ hasText: 'duplicate.csv' })
+    .filter({ hasText: 'Completed' })
+    .first()
+  await expect(completedRow).toBeVisible()
+  await completedRow.getByRole('link', { name: 'Inspect' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Data Quality' }),
+  ).toBeVisible()
+  await expect(page.getByText('66.67%')).toBeVisible()
+  await expect(
+    page.getByRole('cell', { name: 'Duplicate input record' }),
+  ).toBeVisible()
+
+  const overflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  )
+  expect(overflow).toBe(0)
 })

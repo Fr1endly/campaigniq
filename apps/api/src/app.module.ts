@@ -5,9 +5,10 @@ import { SessionController } from './auth/session.controller.js';
 import { AuthGuard } from './auth/auth.guard.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthController } from './health.controller.js';
+import { ImportsModule } from './imports/imports.module.js';
 
 @Module({
-  imports: [DatabaseModule, AnalyticsModule],
+  imports: [DatabaseModule, AnalyticsModule, ImportsModule],
   controllers: [HealthController, SessionController],
   providers: [
     {

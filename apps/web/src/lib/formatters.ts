@@ -33,3 +33,20 @@ export function formatDate(
     ...options,
   }).format(new Date(`${value}T00:00:00.000Z`))
 }
+
+export function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value))
+}
+
+export function formatDuration(value: number | null) {
+  if (value === null) return '—'
+  if (value < 1000) return `${value} ms`
+  if (value < 60_000) return `${(value / 1000).toFixed(1)} s`
+  return `${Math.floor(value / 60_000)}m ${Math.round((value % 60_000) / 1000)}s`
+}

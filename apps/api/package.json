@@ -25,6 +25,8 @@
     "db:seed": "tsx src/database/seed.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1121.0",
+    "@aws-sdk/s3-request-presigner": "^3.1121.0",
     "@campaign-iq/contracts": "*",
     "@campaign-iq/database": "*",
     "@nestjs/common": "^12.0.1",
@@ -43,8 +45,8 @@
     "@nestjs/schematics": "^12.0.0",
     "@nestjs/testing": "^12.0.1",
     "@types/express": "^5.0.0",
-    "@types/pg": "^8.15.5",
     "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.5",
     "@types/supertest": "^7.0.0",
     "@vitest/coverage-v8": "^4.1.2",
     "oxlint": "^1.58.0",

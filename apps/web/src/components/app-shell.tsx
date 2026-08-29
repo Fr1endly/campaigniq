@@ -5,9 +5,11 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import {
   BarChart3,
   ChevronDown,
+  FileWarning,
   LayoutDashboard,
   LogOut,
   Menu,
+  UploadCloud,
 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -59,6 +61,22 @@ function Navigation({
         pageSize: 10,
       },
     },
+    {
+      to: '/imports' as const,
+      label: 'Imports',
+      icon: UploadCloud,
+      search: {
+        status: '' as const,
+        page: 1,
+        pageSize: 20,
+      },
+    },
+    {
+      to: '/data-quality' as const,
+      label: 'Data Quality',
+      icon: FileWarning,
+      search: {},
+    },
   ]
   return (
     <nav
@@ -73,7 +91,7 @@ function Navigation({
           <Link
             key={item.to}
             to={item.to}
-            search={item.search}
+            search={item.search as never}
             onClick={onNavigate}
             className={cn(
               'flex h-9 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors',

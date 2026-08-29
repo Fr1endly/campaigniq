@@ -6,9 +6,10 @@ This document preserves the approved CampaignIQ product and engineering plan.
 TanStack Start is the frontend framework; references to Next.js in the earliest
 design draft were superseded before implementation.
 
-Milestones 1 and 2 are complete: the repository provides the authenticated local
-analytics dashboard and the local CSV ETL pipeline. The next approved milestone
-is the import product experience.
+Milestones 1 through 3 are complete: the repository provides the authenticated
+analytics dashboard, local CSV ETL pipeline, direct object-storage upload flow,
+import operations, and data-quality reporting. AWS deployment is the next
+approved milestone.
 
 ## Product Vision
 
@@ -113,17 +114,17 @@ the file directly from the browser.
 CampaignIQ owns a stable canonical input format rather than coupling the
 warehouse to one public dataset:
 
-| Column | Type | Meaning |
-| --- | --- | --- |
-| `date` | date | Performance date |
-| `campaign_id` | string | Source campaign identifier |
-| `campaign_name` | string | Display name |
-| `channel` | string | Google, Meta, LinkedIn, TikTok, etc. |
-| `impressions` | integer | Ad impressions |
-| `clicks` | integer | Ad clicks |
-| `conversions` | integer | Attributed conversions |
-| `spend` | decimal | Advertising cost |
-| `revenue` | decimal | Attributed revenue |
+| Column          | Type    | Meaning                              |
+| --------------- | ------- | ------------------------------------ |
+| `date`          | date    | Performance date                     |
+| `campaign_id`   | string  | Source campaign identifier           |
+| `campaign_name` | string  | Display name                         |
+| `channel`       | string  | Google, Meta, LinkedIn, TikTok, etc. |
+| `impressions`   | integer | Ad impressions                       |
+| `clicks`        | integer | Ad clicks                            |
+| `conversions`   | integer | Attributed conversions               |
+| `spend`         | decimal | Advertising cost                     |
+| `revenue`       | decimal | Attributed revenue                   |
 
 Example:
 
@@ -294,6 +295,8 @@ Planned import endpoints:
 POST /api/imports
 GET  /api/imports
 GET  /api/imports/:id
+POST /api/imports/:id/process
+POST /api/imports/:id/upload-failed
 GET  /api/imports/:id/issues
 ```
 
@@ -354,7 +357,7 @@ See [MILESTONE_1.md](./MILESTONE_1.md) for the delivery record.
 
 See [MILESTONE_2.md](./MILESTONE_2.md) for the delivery record.
 
-### Phase 3: Import Product Experience - Next
+### Phase 3: Import Product Experience - Complete
 
 - Create import APIs.
 - Add direct presigned uploads against local object storage.
@@ -362,7 +365,9 @@ See [MILESTONE_2.md](./MILESTONE_2.md) for the delivery record.
 - Poll or stream processing status.
 - Refresh analytics after successful completion.
 
-### Phase 4: AWS Deployment
+See [MILESTONE_3.md](./MILESTONE_3.md) for the delivery record.
+
+### Phase 4: AWS Deployment - Next
 
 - Replace local object storage with S3.
 - Trigger Python ETL through Lambda.
