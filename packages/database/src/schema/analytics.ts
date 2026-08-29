@@ -6,6 +6,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgMaterializedView,
@@ -29,6 +30,13 @@ export const warehouseRefreshStatus = pgEnum("warehouse_refresh_status", [
   "current",
   "stale",
   "refreshing",
+  "failed",
+]);
+
+export const predictionRunStatus = pgEnum("prediction_run_status", [
+  "running",
+  "completed",
+  "insufficient_data",
   "failed",
 ]);
 
@@ -222,6 +230,147 @@ export const warehouseRefreshState = pgTable(
     check(
       "warehouse_refresh_revision_order",
       sql`${table.refreshedRevision} <= ${table.dataRevision}`,
+    ),
+  ],
+);
+
+export const predictionRuns = pgTable(
+  "prediction_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    status: predictionRunStatus("status").notNull(),
+    target: text("target").notNull(),
+    modelVersion: text("model_version").notNull(),
+    algorithm: text("algorithm").notNull(),
+    sourceDataRevision: bigint("source_data_revision", {
+      mode: "number",
+    }).notNull(),
+    sourceImportRunId: uuid("source_import_run_id"),
+    dataAsOf: date("data_as_of", { mode: "string" }),
+    trainingStartDate: date("training_start_date", { mode: "string" }),
+    trainingEndDate: date("training_end_date", { mode: "string" }),
+    forecastStartDate: date("forecast_start_date", { mode: "string" }),
+    forecastEndDate: date("forecast_end_date", { mode: "string" }),
+    trainingRows: integer("training_rows"),
+    eligibleCampaigns: integer("eligible_campaigns"),
+    excludedCampaigns: integer("excluded_campaigns"),
+    mae: numeric("mae", { precision: 18, scale: 2 }),
+    wape: numeric("wape", { precision: 8, scale: 4 }),
+    baselineMae: numeric("baseline_mae", { precision: 18, scale: 2 }),
+    baselineWape: numeric("baseline_wape", { precision: 8, scale: 4 }),
+    intervalLevel: integer("interval_level"),
+    intervalCoverage: numeric("interval_coverage", { precision: 8, scale: 4 }),
+    quality: text("quality"),
+    parameters: jsonb("parameters"),
+    coefficients: jsonb("coefficients"),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    durationMs: integer("duration_ms"),
+    errorMessage: text("error_message"),
+  },
+  (table) => [
+    unique("prediction_runs_id_org_uq").on(table.id, table.organizationId),
+    foreignKey({
+      columns: [table.sourceImportRunId, table.organizationId],
+      foreignColumns: [importRuns.id, importRuns.organizationId],
+      name: "prediction_runs_source_import_org_fk",
+    }),
+    index("prediction_runs_org_started_idx").on(
+      table.organizationId,
+      table.startedAt,
+    ),
+    check(
+      "prediction_runs_source_revision_nonnegative",
+      sql`${table.sourceDataRevision} >= 0`,
+    ),
+    check(
+      "prediction_runs_counts_nonnegative",
+      sql`coalesce(${table.trainingRows}, 0) >= 0
+        and coalesce(${table.eligibleCampaigns}, 0) >= 0
+        and coalesce(${table.excludedCampaigns}, 0) >= 0`,
+    ),
+    check(
+      "prediction_runs_metrics_nonnegative",
+      sql`coalesce(${table.mae}, 0) >= 0
+        and coalesce(${table.wape}, 0) >= 0
+        and coalesce(${table.baselineMae}, 0) >= 0
+        and coalesce(${table.baselineWape}, 0) >= 0`,
+    ),
+    check(
+      "prediction_runs_interval_valid",
+      sql`${table.intervalLevel} is null or ${table.intervalLevel} between 1 and 99`,
+    ),
+    check(
+      "prediction_runs_coverage_valid",
+      sql`${table.intervalCoverage} is null or ${table.intervalCoverage} between 0 and 100`,
+    ),
+    check(
+      "prediction_runs_quality_valid",
+      sql`${table.quality} is null or ${table.quality} in ('beats_baseline', 'below_baseline')`,
+    ),
+  ],
+);
+
+export const campaignPredictions = pgTable(
+  "campaign_predictions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id").notNull(),
+    predictionRunId: uuid("prediction_run_id").notNull(),
+    campaignId: uuid("campaign_id").notNull(),
+    forecastStartDate: date("forecast_start_date", {
+      mode: "string",
+    }).notNull(),
+    forecastEndDate: date("forecast_end_date", { mode: "string" }).notNull(),
+    previousRevenue: numeric("previous_revenue", {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+    predictedRevenue: numeric("predicted_revenue", {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+    lowerBound: numeric("lower_bound", { precision: 18, scale: 2 }).notNull(),
+    upperBound: numeric("upper_bound", { precision: 18, scale: 2 }).notNull(),
+    drivers: jsonb("drivers").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.predictionRunId, table.organizationId],
+      foreignColumns: [predictionRuns.id, predictionRuns.organizationId],
+      name: "campaign_predictions_run_org_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.campaignId, table.organizationId],
+      foreignColumns: [campaigns.id, campaigns.organizationId],
+      name: "campaign_predictions_campaign_org_fk",
+    }).onDelete("cascade"),
+    unique("campaign_predictions_run_campaign_uq").on(
+      table.predictionRunId,
+      table.campaignId,
+    ),
+    index("campaign_predictions_org_campaign_idx").on(
+      table.organizationId,
+      table.campaignId,
+    ),
+    check(
+      "campaign_predictions_dates_valid",
+      sql`${table.forecastEndDate} >= ${table.forecastStartDate}`,
+    ),
+    check(
+      "campaign_predictions_values_valid",
+      sql`${table.previousRevenue} >= 0
+        and ${table.lowerBound} >= 0
+        and ${table.predictedRevenue} >= ${table.lowerBound}
+        and ${table.upperBound} >= ${table.predictedRevenue}`,
     ),
   ],
 );

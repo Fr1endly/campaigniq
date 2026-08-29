@@ -27,6 +27,8 @@ test('protects analytics routes and handles invalid login', async ({
 }) => {
   const response = await request.get('/api/dashboard/summary?range=30d')
   expect(response.status()).toBe(401)
+  const insightsResponse = await request.get('/api/insights')
+  expect(insightsResponse.status()).toBe(401)
 
   await page.goto('/overview?range=30d')
   await expect(page).toHaveURL(/\/login/)
@@ -104,6 +106,39 @@ test('filters campaigns and opens campaign details', async ({ page }) => {
   await expect(page.locator('tbody tr')).toHaveCount(30)
 })
 
+test('shows evidence-backed campaign forecasts', async ({ page }, testInfo) => {
+  await signIn(page)
+  const mobileMenu = page.getByRole('button', { name: 'Open navigation' })
+  if (await mobileMenu.isVisible()) await mobileMenu.click()
+  await page.getByRole('link', { name: 'Insights' }).click()
+  await expect(page.getByRole('heading', { name: 'Insights' })).toBeVisible()
+  await expect(page.getByText('Current', { exact: true })).toBeVisible()
+  await expect(page.getByText('Forecast revenue')).toBeVisible()
+  await expect(page.getByText('Backtest WAPE')).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Campaign revenue outlook' }),
+  ).toBeVisible()
+  await expect(page.locator('[data-testid="prediction-chart"]')).toBeVisible()
+  await expect(page.getByRole('row', { name: /Summer Search/ })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Model evidence' }),
+  ).toBeVisible()
+
+  const generation = await page.request.post('/api/predictions')
+  expect(generation.status()).toBe(202)
+
+  const overflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  )
+  expect(overflow).toBe(0)
+  await page.screenshot({
+    path: testInfo.outputPath('insights.png'),
+    fullPage: true,
+  })
+})
+
 test('uploads a CSV, processes it, and exposes its quality report', async ({
   page,
 }) => {
@@ -120,12 +155,7 @@ test('uploads a CSV, processes it, and exposes its quality report', async ({
 
   await page
     .getByLabel('Choose CSV file')
-    .setInputFiles(
-      resolve(
-        import.meta.dirname,
-        './fixtures/duplicate.csv',
-      ),
-    )
+    .setInputFiles(resolve(import.meta.dirname, './fixtures/duplicate.csv'))
   await page.getByRole('button', { name: 'Upload and process' }).click()
   const uploadPanel = page.getByRole('region', {
     name: 'Upload campaign data',

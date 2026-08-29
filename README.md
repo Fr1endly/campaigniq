@@ -1,6 +1,6 @@
 # CampaignIQ
 
-CampaignIQ is a marketing analytics SaaS demo built as a real product around a warehouse-oriented data model. The current product provides authenticated dashboards, direct CSV uploads to local S3-compatible storage, asynchronous Python ETL processing, observable incremental loads, data-quality reporting, rolling campaign analytics, and measured aggregate refresh operations.
+CampaignIQ is a marketing analytics SaaS demo built as a real product around a warehouse-oriented data model. The current product provides authenticated dashboards, direct CSV uploads to local S3-compatible storage, asynchronous Python ETL processing, observable incremental loads, data-quality reporting, rolling campaign analytics, measured aggregate refresh operations, and evidence-backed campaign revenue forecasts.
 
 ## Project documentation
 
@@ -9,6 +9,7 @@ CampaignIQ is a marketing analytics SaaS demo built as a real product around a w
 - [Milestone 2 delivery summary](./docs/MILESTONE_2.md)
 - [Milestone 3 delivery summary](./docs/MILESTONE_3.md)
 - [Milestone 5 delivery and benchmark summary](./docs/MILESTONE_5.md)
+- [Milestone 6 predictive insights summary](./docs/MILESTONE_6.md)
 - [Repository agent guide](./AGENTS.md)
 
 ## Stack
@@ -17,7 +18,7 @@ CampaignIQ is a marketing analytics SaaS demo built as a real product around a w
 - NestJS with Better Auth
 - PostgreSQL with Drizzle ORM and committed SQL migrations
 - MinIO for local S3-compatible direct uploads
-- Python, Pandas, SQLAlchemy, and psycopg for local ETL
+- Python, Pandas, scikit-learn, SQLAlchemy, and psycopg for ETL and forecasts
 - npm workspaces and Turborepo
 - Vitest, pytest, and Playwright
 
@@ -47,7 +48,7 @@ Email:    demo@campaigniq.local
 Password: CampaignIQ2026!
 ```
 
-The database seed is idempotent and creates one owner, one organization, 12 campaigns, and 180 days of daily facts.
+The database seed is idempotent and creates one owner, one organization, 12 campaigns, 180 days of daily facts, and a current seven-day campaign forecast.
 
 ## Commands
 
@@ -63,6 +64,7 @@ npm run db:migrate   # apply committed migrations
 npm run db:seed      # seed or repair the deterministic demo data
 npm run db:benchmark # benchmark live and materialized warehouse queries
 npm run etl:load -- --file ./campaign.csv --organization-id <uuid>
+npm run predictions:generate -- --organization-id <uuid>
 npm run etl:test     # Python unit and PostgreSQL integration tests
 ```
 
@@ -89,6 +91,7 @@ Browser
                  └─ Drizzle → PostgreSQL
 
 MinIO raw object → Python ETL → PostgreSQL warehouse and import metadata
+PostgreSQL facts → Python Ridge evaluation and forecast → Insights UI
 ```
 
 TanStack Start owns presentation, routing, and SSR. NestJS owns authentication,
@@ -114,6 +117,8 @@ POST /api/imports/:id/upload-failed
 GET /api/imports/:id/issues
 GET /api/warehouse/status
 POST /api/warehouse/refresh
+GET /api/insights
+POST /api/predictions
 ```
 
 Authentication endpoints are mounted under `/api/auth/*`.
@@ -131,7 +136,7 @@ services/
   etl/        Chunked Python CSV validation and warehouse loading
 ```
 
-Phase 5 advanced SQL and warehouse operations is complete. Phase 4 AWS
-infrastructure remains postponed and will later replace local MinIO and API
-process dispatch with S3 event processing in Lambda. Phase 6 predictive insights
-is next.
+Phase 6 predictive insights is complete. Phase 4 AWS infrastructure remains
+approved but postponed and will later replace local MinIO and API process
+dispatch with S3 event processing in Lambda. No later product milestone is
+currently approved.

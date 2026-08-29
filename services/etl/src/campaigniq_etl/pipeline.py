@@ -19,6 +19,7 @@ from campaigniq_etl.database import (
     warehouse_refresh_state,
 )
 from campaigniq_etl.models import CanonicalRecord, ImportResult, RowIssue
+from campaigniq_etl.prediction import PredictionGenerator
 from campaigniq_etl.refresh import AGGREGATE_KEY, AggregateRefresher
 from campaigniq_etl.validation import read_csv_chunks, validate_record
 
@@ -119,6 +120,8 @@ class ImportProcessor:
 
             with suppress(Exception):
                 AggregateRefresher(self.engine).refresh()
+            with suppress(Exception):
+                PredictionGenerator(self.engine).generate(organization_id)
             return ImportResult(
                 import_run_id=run_id,
                 status="completed",

@@ -258,6 +258,81 @@ export const warehouseStatusSchema = z.object({
   ]),
 });
 
+export const predictionDriverSchema = z.object({
+  feature: z.string(),
+  label: z.string(),
+  direction: z.enum(["positive", "negative"]),
+  contribution: z.string(),
+});
+
+export const predictionAttemptSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(["running", "completed", "insufficient_data", "failed"]),
+  startedAt: z.string().datetime(),
+  completedAt: z.string().datetime().nullable(),
+  errorMessage: z.string().nullable(),
+});
+
+export const predictionModelSchema = z.object({
+  id: z.string().uuid(),
+  target: z.literal("campaign_revenue_7d"),
+  algorithm: z.literal("ridge_regression"),
+  version: z.string(),
+  dataAsOf: z.string(),
+  trainingStartDate: z.string(),
+  trainingEndDate: z.string(),
+  forecastStartDate: z.string(),
+  forecastEndDate: z.string(),
+  trainingRows: z.number().int().nonnegative(),
+  eligibleCampaigns: z.number().int().nonnegative(),
+  excludedCampaigns: z.number().int().nonnegative(),
+  quality: z.enum(["beats_baseline", "below_baseline"]),
+  evaluation: z.object({
+    mae: z.string(),
+    wape: z.number().nonnegative(),
+    baselineMae: z.string(),
+    baselineWape: z.number().nonnegative(),
+    intervalLevel: z.number().int().min(1).max(99),
+    intervalCoverage: z.number().min(0).max(100),
+  }),
+  trainedAt: z.string().datetime(),
+});
+
+export const campaignPredictionSchema = z.object({
+  campaign: z.object({
+    id: z.string().uuid(),
+    externalId: z.string(),
+    name: z.string(),
+    channel: z.string(),
+  }),
+  previousRevenue: z.string(),
+  predictedRevenue: z.string(),
+  lowerBound: z.string(),
+  upperBound: z.string(),
+  change: z.number().nullable(),
+  drivers: z.array(predictionDriverSchema),
+});
+
+export const insightsResponseSchema = z.object({
+  state: z.enum(["current", "stale", "training", "unavailable"]),
+  latestAttempt: predictionAttemptSchema.nullable(),
+  model: predictionModelSchema.nullable(),
+  summary: z
+    .object({
+      previousRevenue: z.string(),
+      predictedRevenue: z.string(),
+      lowerBound: z.string(),
+      upperBound: z.string(),
+      change: z.number().nullable(),
+    })
+    .nullable(),
+  predictions: z.array(campaignPredictionSchema),
+});
+
+export const predictionGenerationResponseSchema = z.object({
+  status: z.literal("accepted"),
+});
+
 export type DashboardQuery = z.infer<typeof dashboardQuerySchema>;
 export type DashboardSummary = z.infer<typeof dashboardSummarySchema>;
 export type CampaignPerformance = z.infer<typeof campaignPerformanceSchema>;
@@ -277,3 +352,11 @@ export type ImportListResponse = z.infer<typeof importListResponseSchema>;
 export type DataQualityIssue = z.infer<typeof dataQualityIssueSchema>;
 export type ImportIssuesResponse = z.infer<typeof importIssuesResponseSchema>;
 export type WarehouseStatus = z.infer<typeof warehouseStatusSchema>;
+export type PredictionDriver = z.infer<typeof predictionDriverSchema>;
+export type PredictionAttempt = z.infer<typeof predictionAttemptSchema>;
+export type PredictionModel = z.infer<typeof predictionModelSchema>;
+export type CampaignPrediction = z.infer<typeof campaignPredictionSchema>;
+export type InsightsResponse = z.infer<typeof insightsResponseSchema>;
+export type PredictionGenerationResponse = z.infer<
+  typeof predictionGenerationResponseSchema
+>;

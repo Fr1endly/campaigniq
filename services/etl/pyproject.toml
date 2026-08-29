@@ -9,9 +9,11 @@ description = "Local CSV ETL pipeline for CampaignIQ"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+  "numpy>=2.0,<3",
   "pandas>=2.2,<3",
   "psycopg[binary]>=3.2,<4",
   "python-dotenv>=1.0,<2",
+  "scikit-learn>=1.9,<2",
   "SQLAlchemy>=2.0,<3",
 ]
 

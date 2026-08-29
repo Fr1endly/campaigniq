@@ -4,6 +4,7 @@ import type { SessionResponse } from '@campaign-iq/contracts'
 import { Link, useRouterState } from '@tanstack/react-router'
 import {
   BarChart3,
+  ChartNoAxesCombined,
   ChevronDown,
   FileWarning,
   LayoutDashboard,
@@ -76,6 +77,15 @@ function Navigation({
       label: 'Data Quality',
       icon: FileWarning,
       search: {},
+    },
+    {
+      to: '/insights' as const,
+      label: 'Insights',
+      icon: ChartNoAxesCombined,
+      search: {
+        sort: 'forecast' as const,
+        order: 'desc' as const,
+      },
     },
   ]
   return (

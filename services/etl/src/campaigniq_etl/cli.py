@@ -7,6 +7,7 @@ from uuid import UUID
 from campaigniq_etl.config import ConfigurationError, get_database_url
 from campaigniq_etl.database import create_etl_engine
 from campaigniq_etl.pipeline import ImportProcessor, ImportSetupError
+from campaigniq_etl.prediction import PredictionGenerator
 from campaigniq_etl.refresh import AggregateRefresher
 
 
@@ -26,6 +27,10 @@ def build_parser() -> argparse.ArgumentParser:
     load.add_argument("--import-run-id", type=UUID)
     load.add_argument("--chunk-size", type=_positive_integer, default=10_000)
     commands.add_parser("refresh-aggregates", help="refresh reporting aggregates")
+    predictions = commands.add_parser(
+        "generate-predictions", help="train and persist campaign revenue forecasts"
+    )
+    predictions.add_argument("--organization-id", required=True, type=UUID)
     return parser
 
 
@@ -38,6 +43,10 @@ def main(argv: list[str] | None = None) -> int:
                 refresh_result = AggregateRefresher(engine).refresh()
                 print(json.dumps(refresh_result, sort_keys=True))
                 return 0 if refresh_result["status"] != "failed" else 1
+            if args.command == "generate-predictions":
+                prediction_result = PredictionGenerator(engine).generate(args.organization_id)
+                print(json.dumps(prediction_result.to_dict(), sort_keys=True))
+                return 0 if prediction_result.status != "failed" else 1
             result = ImportProcessor(engine, chunk_size=args.chunk_size).process(
                 file_path=args.file,
                 organization_id=args.organization_id,

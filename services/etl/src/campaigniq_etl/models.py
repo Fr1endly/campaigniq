@@ -49,3 +49,17 @@ class ImportResult:
         result = asdict(self)
         result["import_run_id"] = str(self.import_run_id)
         return result
+
+
+@dataclass(frozen=True, slots=True)
+class PredictionResult:
+    prediction_run_id: UUID
+    status: Literal["completed", "insufficient_data", "failed"]
+    prediction_count: int
+    source_data_revision: int
+    error_message: str | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        result = asdict(self)
+        result["prediction_run_id"] = str(self.prediction_run_id)
+        return result

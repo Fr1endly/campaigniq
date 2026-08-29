@@ -16,8 +16,8 @@ Login -> dashboard -> upload CSV -> ETL processing -> load/reject summary
 The current repository implements the authenticated analytics dashboard, local
 Python CSV ETL, direct MinIO uploads, import APIs/screens, data-quality reporting,
 observable incremental outcomes, rolling/ranked product queries, materialized
-daily aggregates, and warehouse status reporting. Phase 4 AWS infrastructure is
-postponed; Phase 6 predictive insights is next.
+daily aggregates, warehouse status reporting, and seven-day campaign revenue
+forecasts with holdout evidence. Phase 4 AWS infrastructure remains postponed.
 
 ## Project Documents
 
@@ -26,6 +26,7 @@ postponed; Phase 6 predictive insights is next.
 - `docs/MILESTONE_2.md` is the dated record of the completed local ETL milestone.
 - `docs/MILESTONE_3.md` is the dated record of the completed import-product milestone.
 - `docs/MILESTONE_5.md` is the dated record of advanced SQL and warehouse operations.
+- `docs/MILESTONE_6.md` is the dated record of predictive insights.
 - `README.md` is the concise setup and repository entry point.
 
 Keep implementation and these documents aligned when milestone scope or
@@ -38,7 +39,7 @@ architecture changes.
 - API: NestJS, TypeScript, Better Auth
 - Database: PostgreSQL 17, Drizzle ORM, committed SQL migrations
 - Validation/contracts: Zod
-- ETL: Python 3.12, Pandas, SQLAlchemy, psycopg
+- ETL and ML: Python 3.12, Pandas, scikit-learn, SQLAlchemy, psycopg
 - Tests: Vitest, pytest, and Playwright
 - Local infrastructure: Docker Compose
 - Local object storage: MinIO (S3-compatible)
@@ -113,6 +114,7 @@ npm run db:migrate   # apply committed migrations
 npm run db:seed      # create deterministic demo data
 npm run db:benchmark # compare live and materialized warehouse query plans
 npm run etl:load -- --file <csv> --organization-id <uuid>
+npm run predictions:generate -- --organization-id <uuid>
 npm run etl:test     # ETL unit and PostgreSQL integration tests
 ```
 
@@ -191,20 +193,21 @@ API/web services; its configuration can start or reuse the application servers.
 - Before handing off a completed change, run the applicable subset and normally
   finish with lint, typecheck, tests, and a production build.
 
-## Next Approved Milestone
+## Current Roadmap State
 
-Advance CampaignIQ through Phase 6 predictive insights:
+Phase 6 predictive insights is complete:
 
 ```text
 prediction target -> baseline evaluation -> persisted predictions
     -> interpretable API and Insights UI
 ```
 
-Define a defensible prediction target and evaluation metric, persist model and
-prediction metadata, and expose interpretable results without presenting them as
-certainty. Phase 4 AWS deployment remains approved but postponed; preserve the
-current import, ETL, aggregate-refresh, and tenant contracts for the later S3,
-Lambda, and RDS migration.
+The product forecasts each eligible campaign's next seven days of revenue,
+compares Ridge regression with a previous-week baseline, persists model and
+prediction metadata, and exposes ranges and non-causal signals in Insights.
+Phase 4 AWS deployment remains approved but postponed; preserve the current
+import, ETL, prediction, aggregate-refresh, and tenant contracts for the later
+S3, Lambda, and RDS migration. No post-Phase 6 product milestone is approved.
 
 ## Git
 

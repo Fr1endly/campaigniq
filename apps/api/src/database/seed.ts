@@ -2,11 +2,13 @@ import 'dotenv/config';
 import { and, eq, sql } from 'drizzle-orm';
 import {
   campaigns,
+  campaignPredictions,
   dataQualityIssues,
   importRuns,
   marketingPerformance,
   member,
   organization,
+  predictionRuns,
   session,
   user,
   warehouseRefreshState,
@@ -95,6 +97,22 @@ async function seedAuth() {
 }
 
 async function seedAnalytics() {
+  await databaseConnection.db
+    .delete(campaignPredictions)
+    .where(eq(campaignPredictions.organizationId, ORGANIZATION_ID));
+  await databaseConnection.db
+    .delete(predictionRuns)
+    .where(eq(predictionRuns.organizationId, ORGANIZATION_ID));
+  await databaseConnection.db
+    .delete(marketingPerformance)
+    .where(eq(marketingPerformance.organizationId, ORGANIZATION_ID));
+  await databaseConnection.db
+    .delete(campaigns)
+    .where(eq(campaigns.organizationId, ORGANIZATION_ID));
+  await databaseConnection.db
+    .delete(importRuns)
+    .where(eq(importRuns.organizationId, ORGANIZATION_ID));
+
   await databaseConnection.db
     .insert(importRuns)
     .values({

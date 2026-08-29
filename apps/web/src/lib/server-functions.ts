@@ -11,6 +11,7 @@ import {
   importListQuerySchema,
   importListResponseSchema,
   importRunSchema,
+  insightsResponseSchema,
   sessionResponseSchema,
   warehouseStatusSchema,
 } from '@campaign-iq/contracts'
@@ -99,6 +100,13 @@ export const getWarehouseStatusFn = createServerFn({ method: 'GET' }).handler(
   async () => {
     const response = await apiRequest('/api/warehouse/status')
     return parseApiResponse(response, warehouseStatusSchema)
+  },
+)
+
+export const getInsightsFn = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const response = await apiRequest('/api/insights')
+    return parseApiResponse(response, insightsResponseSchema)
   },
 )
 
