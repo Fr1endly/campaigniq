@@ -60,5 +60,8 @@ for a real presigned upload through completion and quality inspection.
 
 ## Next
 
-Phase 4 moves object storage and processing to AWS S3 and Lambda, PostgreSQL to
-RDS, and adds reproducible CloudFormation, least-privilege IAM, and monitoring.
+Phase 5 advances incremental loading, product-facing SQL, aggregate refresh
+strategies, and warehouse observability. Phase 4 remains approved but is
+postponed; it will later move object storage and processing to AWS S3 and Lambda,
+PostgreSQL to RDS, and add reproducible CloudFormation, least-privilege IAM, and
+monitoring.

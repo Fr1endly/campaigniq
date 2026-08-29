@@ -126,5 +126,7 @@ services/
   etl/        Chunked Python CSV validation and warehouse loading
 ```
 
-AWS infrastructure and predictive insights remain later milestones. Phase 4 will
-replace local MinIO and API process dispatch with S3 event processing in Lambda.
+Phase 5 advanced SQL and warehouse operations is the next milestone. Phase 4 AWS
+infrastructure is postponed and will later replace local MinIO and API process
+dispatch with S3 event processing in Lambda. Predictive insights remain a later
+milestone.

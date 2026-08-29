@@ -15,7 +15,8 @@ Login -> dashboard -> upload CSV -> ETL processing -> load/reject summary
 
 The current repository implements the authenticated analytics dashboard, local
 Python CSV ETL, direct MinIO uploads, import APIs/screens, and data-quality
-reporting. AWS infrastructure is next; ML remains a later milestone.
+reporting. Phase 5 advanced SQL and warehouse operations is next; Phase 4 AWS
+infrastructure is postponed, and ML remains a later milestone.
 
 ## Project Documents
 
@@ -189,16 +190,18 @@ API/web services; its configuration can start or reuse the application servers.
 
 ## Next Approved Milestone
 
-Deploy the completed local product architecture to AWS:
+Advance the local warehouse implementation through Phase 5:
 
 ```text
-S3 direct upload -> object-created event -> Lambda Python ETL
-    -> RDS PostgreSQL -> existing import/data-quality/analytics product
+incremental loading -> advanced product queries -> measured aggregate strategy
+    -> refresh operations -> warehouse observability
 ```
 
-Add CloudFormation, least-privilege IAM, deployment configuration, monitoring,
-and failure handling. Preserve the current import API and ETL contracts while
-replacing local MinIO and API process dispatch. ML remains last.
+Add explicit incremental-loading demonstrations, useful CTE and window-function
+queries, and refresh and observability strategies. Evaluate materialized views
+for expensive aggregates based on measured need. Phase 4 AWS deployment remains
+approved but postponed; preserve the current import API and ETL contracts so the
+later S3, Lambda, and RDS migration remains possible. ML remains last.
 
 ## Git
 

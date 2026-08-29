@@ -8,8 +8,9 @@ design draft were superseded before implementation.
 
 Milestones 1 through 3 are complete: the repository provides the authenticated
 analytics dashboard, local CSV ETL pipeline, direct object-storage upload flow,
-import operations, and data-quality reporting. AWS deployment is the next
-approved milestone.
+import operations, and data-quality reporting. Phase 4 AWS deployment is
+postponed; Phase 5 advanced SQL and warehouse operations is the next approved
+milestone.
 
 ## Product Vision
 
@@ -367,7 +368,10 @@ See [MILESTONE_2.md](./MILESTONE_2.md) for the delivery record.
 
 See [MILESTONE_3.md](./MILESTONE_3.md) for the delivery record.
 
-### Phase 4: AWS Deployment - Next
+### Phase 4: AWS Deployment - Postponed
+
+This phase remains approved but is deferred until after the current warehouse
+operations work.
 
 - Replace local object storage with S3.
 - Trigger Python ETL through Lambda.
@@ -376,7 +380,7 @@ See [MILESTONE_3.md](./MILESTONE_3.md) for the delivery record.
 - Add deployment configuration, least-privilege IAM, monitoring, and failure
   handling.
 
-### Phase 5: Advanced SQL and Warehouse Operations
+### Phase 5: Advanced SQL and Warehouse Operations - Next
 
 - Add explicit incremental-loading demonstrations.
 - Use CTEs and window functions for useful product queries.
