@@ -1,0 +1,4 @@
+date,campaign_id,campaign_name,channel,impressions,clicks,conversions,spend,revenue
+2026-08-01,E2E001,E2E Upload,Google,100,10,1,12.00,24.00
+2026-08-01,E2E001,Duplicate Name,Google,200,20,2,22.00,44.00
+2026-08-02,E2E001,E2E Upload Updated,Google,300,30,3,32.00,64.00

@@ -290,7 +290,15 @@ export function ImportUpload() {
                   <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
                   <p>
                     Loaded {formatNumber(activeImport.loadedRows)} rows;
-                    rejected {formatNumber(activeImport.rejectedRows)}.
+                    rejected {formatNumber(activeImport.rejectedRows)}.{' '}
+                    {activeImport.insertedRows !== null && (
+                      <>
+                        {formatNumber(activeImport.insertedRows)} new,{' '}
+                        {formatNumber(activeImport.updatedRows ?? 0)} changed,{' '}
+                        {formatNumber(activeImport.unchangedRows ?? 0)}{' '}
+                        unchanged.{' '}
+                      </>
+                    )}
                     Analytics now reflect the completed load.
                   </p>
                 </div>

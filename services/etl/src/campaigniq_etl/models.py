@@ -39,6 +39,9 @@ class ImportResult:
     received_rows: int
     loaded_rows: int
     rejected_rows: int
+    inserted_rows: int | None
+    updated_rows: int | None
+    unchanged_rows: int | None
     duration_ms: int
     error_message: str | None = None
 

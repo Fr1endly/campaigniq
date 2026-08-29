@@ -18,6 +18,8 @@ export const trendPointSchema = z.object({
   date: z.string(),
   revenue: z.string(),
   spend: z.string(),
+  rollingRevenue: z.string(),
+  rollingSpend: z.string(),
 });
 
 export const campaignPerformanceSchema = z.object({
@@ -35,6 +37,13 @@ export const campaignPerformanceSchema = z.object({
   cpc: z.number().nullable(),
   cpa: z.number().nullable(),
   roas: z.number().nullable(),
+});
+
+export const campaignMomentumSchema = campaignPerformanceSchema.extend({
+  currentRank: z.number().int().positive(),
+  previousRank: z.number().int().positive().nullable(),
+  rankChange: z.number().int().nullable(),
+  revenueChange: z.number().nullable(),
 });
 
 export const dashboardSummarySchema = z.object({
@@ -55,7 +64,7 @@ export const dashboardSummarySchema = z.object({
     roas: metricSchema,
   }),
   trend: z.array(trendPointSchema),
-  topCampaigns: z.array(campaignPerformanceSchema),
+  topCampaigns: z.array(campaignMomentumSchema),
 });
 
 export const campaignSortSchema = z.enum([
@@ -97,7 +106,10 @@ export const campaignDetailResponseSchema = z.object({
   metrics: dashboardSummarySchema.shape.metrics,
   trend: z.array(trendPointSchema),
   daily: z.array(
-    trendPointSchema.extend({
+    z.object({
+      date: z.string(),
+      revenue: z.string(),
+      spend: z.string(),
       impressions: z.number(),
       clicks: z.number(),
       conversions: z.number(),
@@ -136,6 +148,9 @@ export const importRunSchema = z.object({
   receivedRows: z.number().int().nonnegative(),
   loadedRows: z.number().int().nonnegative(),
   rejectedRows: z.number().int().nonnegative(),
+  insertedRows: z.number().int().nonnegative().nullable(),
+  updatedRows: z.number().int().nonnegative().nullable(),
+  unchangedRows: z.number().int().nonnegative().nullable(),
   startedAt: z.string().datetime().nullable(),
   completedAt: z.string().datetime().nullable(),
   durationMs: z.number().int().nonnegative().nullable(),
@@ -208,9 +223,45 @@ export const importIssuesResponseSchema = z.object({
   }),
 });
 
+export const warehouseStatusSchema = z.object({
+  dataAsOf: z.string().nullable(),
+  campaignCount: z.number().int().nonnegative(),
+  factCount: z.number().int().nonnegative(),
+  latestCompletedImportAt: z.string().datetime().nullable(),
+  trailing30Days: z.object({
+    completedRuns: z.number().int().nonnegative(),
+    failedRuns: z.number().int().nonnegative(),
+    successRate: z.number().min(0).max(100).nullable(),
+    validRate: z.number().min(0).max(100).nullable(),
+    loadedRows: z.number().int().nonnegative(),
+    rejectedRows: z.number().int().nonnegative(),
+    averageDurationMs: z.number().int().nonnegative().nullable(),
+    rowsPerSecond: z.number().nonnegative().nullable(),
+  }),
+  reporting: z.discriminatedUnion("strategy", [
+    z.object({
+      strategy: z.literal("live"),
+      status: z.literal("current"),
+      dataRevision: z.number().int().nonnegative(),
+      refreshedRevision: z.number().int().nonnegative(),
+      refreshedAt: z.null(),
+      errorMessage: z.null(),
+    }),
+    z.object({
+      strategy: z.literal("materialized"),
+      status: z.enum(["current", "stale", "refreshing", "failed"]),
+      dataRevision: z.number().int().nonnegative(),
+      refreshedRevision: z.number().int().nonnegative(),
+      refreshedAt: z.string().datetime().nullable(),
+      errorMessage: z.string().nullable(),
+    }),
+  ]),
+});
+
 export type DashboardQuery = z.infer<typeof dashboardQuerySchema>;
 export type DashboardSummary = z.infer<typeof dashboardSummarySchema>;
 export type CampaignPerformance = z.infer<typeof campaignPerformanceSchema>;
+export type CampaignMomentum = z.infer<typeof campaignMomentumSchema>;
 export type CampaignListQuery = z.infer<typeof campaignListQuerySchema>;
 export type CampaignListResponse = z.infer<typeof campaignListResponseSchema>;
 export type CampaignDetailResponse = z.infer<
@@ -225,3 +276,4 @@ export type ImportListQuery = z.infer<typeof importListQuerySchema>;
 export type ImportListResponse = z.infer<typeof importListResponseSchema>;
 export type DataQualityIssue = z.infer<typeof dataQualityIssueSchema>;
 export type ImportIssuesResponse = z.infer<typeof importIssuesResponseSchema>;
+export type WarehouseStatus = z.infer<typeof warehouseStatusSchema>;

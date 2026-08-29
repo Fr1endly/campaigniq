@@ -16,6 +16,7 @@
     "test:e2e": "npm run test:e2e --workspace @campaign-iq/web",
     "db:generate": "npm run db:generate --workspace @campaign-iq/database",
     "db:migrate": "npm run db:migrate --workspace @campaign-iq/database",
+    "db:benchmark": "npm run db:benchmark --workspace @campaign-iq/database",
     "db:seed": "npm run db:seed --workspace @campaign-iq/api",
     "etl:build": "python3 -m build services/etl",
     "etl:lint": "python3 -m ruff check services/etl",

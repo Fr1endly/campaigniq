@@ -12,6 +12,7 @@ import {
   importListResponseSchema,
   importRunSchema,
   sessionResponseSchema,
+  warehouseStatusSchema,
 } from '@campaign-iq/contracts'
 
 async function apiRequest(path: string) {
@@ -93,6 +94,13 @@ export const getImportsFn = createServerFn({ method: 'GET' })
     const response = await apiRequest(`/api/imports?${params}`)
     return parseApiResponse(response, importListResponseSchema)
   })
+
+export const getWarehouseStatusFn = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const response = await apiRequest('/api/warehouse/status')
+    return parseApiResponse(response, warehouseStatusSchema)
+  },
+)
 
 const importIdInputSchema = z.object({ id: z.string().uuid() })
 

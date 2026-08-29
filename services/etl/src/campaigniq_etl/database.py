@@ -16,6 +16,27 @@ from sqlalchemy.engine import Engine
 
 metadata = MetaData()
 
+warehouse_refresh_status = ENUM(
+    "current",
+    "stale",
+    "refreshing",
+    "failed",
+    name="warehouse_refresh_status",
+    create_type=False,
+)
+
+warehouse_refresh_state = Table(
+    "warehouse_refresh_state",
+    metadata,
+    Column("aggregate_key", Text, primary_key=True),
+    Column("status", warehouse_refresh_status, nullable=False),
+    Column("data_revision", BigInteger, nullable=False),
+    Column("refreshed_revision", BigInteger, nullable=False),
+    Column("started_at", DateTime(timezone=True)),
+    Column("completed_at", DateTime(timezone=True)),
+    Column("error_message", Text),
+)
+
 import_status = ENUM(
     "received",
     "uploading",
@@ -63,6 +84,9 @@ import_runs = Table(
     Column("received_rows", BigInteger, nullable=False),
     Column("loaded_rows", BigInteger, nullable=False),
     Column("rejected_rows", BigInteger, nullable=False),
+    Column("inserted_rows", BigInteger),
+    Column("updated_rows", BigInteger),
+    Column("unchanged_rows", BigInteger),
     Column("started_at", DateTime(timezone=True)),
     Column("completed_at", DateTime(timezone=True)),
     Column("duration_ms", Integer),

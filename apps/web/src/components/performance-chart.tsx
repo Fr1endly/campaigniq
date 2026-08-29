@@ -49,13 +49,19 @@ function ChartTooltip({
   )
 }
 
-export function PerformanceChart({ data }: { data: TrendPoint[] }) {
+export function PerformanceChart({
+  data,
+  mode = 'daily',
+}: {
+  data: TrendPoint[]
+  mode?: 'daily' | 'rolling7'
+}) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const chartData = data.map((point) => ({
     ...point,
-    revenue: Number(point.revenue),
-    spend: Number(point.spend),
+    revenue: Number(mode === 'daily' ? point.revenue : point.rollingRevenue),
+    spend: Number(mode === 'daily' ? point.spend : point.rollingSpend),
   }))
 
   useEffect(() => {

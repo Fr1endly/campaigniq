@@ -6,9 +6,10 @@ import { AuthGuard } from './auth/auth.guard.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthController } from './health.controller.js';
 import { ImportsModule } from './imports/imports.module.js';
+import { WarehouseModule } from './warehouse/warehouse.module.js';
 
 @Module({
-  imports: [DatabaseModule, AnalyticsModule, ImportsModule],
+  imports: [DatabaseModule, AnalyticsModule, ImportsModule, WarehouseModule],
   controllers: [HealthController, SessionController],
   providers: [
     {

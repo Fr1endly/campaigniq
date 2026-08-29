@@ -45,7 +45,7 @@ function Navigation({
       to: '/overview' as const,
       label: 'Overview',
       icon: LayoutDashboard,
-      search: { range: '30d' as const },
+      search: { range: '30d' as const, trend: 'daily' as const },
     },
     {
       to: '/campaigns' as const,

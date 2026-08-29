@@ -19,6 +19,7 @@ from campaigniq_etl.database import (
     import_runs,
     marketing_performance,
     organizations,
+    warehouse_refresh_state,
 )
 from campaigniq_etl.models import CanonicalRecord
 from campaigniq_etl.pipeline import ImportProcessor, ImportSetupError
@@ -60,14 +61,13 @@ def organization_id(engine: Engine) -> Iterator[UUID]:
 
 
 @pytest.mark.integration
-def test_loads_duplicates_and_retries_idempotently(
-    engine: Engine, organization_id: UUID
-) -> None:
+def test_loads_duplicates_and_retries_idempotently(engine: Engine, organization_id: UUID) -> None:
     processor = ImportProcessor(engine, chunk_size=1)
     result = processor.process(FIXTURES / "duplicate.csv", organization_id)
 
     assert result.status == "completed"
     assert (result.received_rows, result.loaded_rows, result.rejected_rows) == (3, 2, 1)
+    assert (result.inserted_rows, result.updated_rows, result.unchanged_rows) == (2, 0, 0)
 
     with engine.connect() as connection:
         run = connection.execute(
@@ -121,15 +121,22 @@ def test_incremental_import_overwrites_facts_and_provenance(
     second = processor.process(FIXTURES / "incremental.csv", organization_id)
 
     assert first.status == second.status == "completed"
+    assert (second.received_rows, second.loaded_rows, second.rejected_rows) == (3, 3, 0)
+    assert (second.inserted_rows, second.updated_rows, second.unchanged_rows) == (1, 1, 1)
     with engine.connect() as connection:
         campaign = connection.execute(
             select(campaigns).where(campaigns.c.organization_id == organization_id)
         ).one()
         updated_fact = connection.execute(
-            select(marketing_performance)
-            .where(
+            select(marketing_performance).where(
                 marketing_performance.c.organization_id == organization_id,
                 marketing_performance.c.date == date(2026, 8, 2),
+            )
+        ).one()
+        unchanged_fact = connection.execute(
+            select(marketing_performance).where(
+                marketing_performance.c.organization_id == organization_id,
+                marketing_performance.c.date == date(2026, 8, 1),
             )
         ).one()
         fact_count = connection.scalar(
@@ -142,7 +149,12 @@ def test_incremental_import_overwrites_facts_and_provenance(
     assert updated_fact.impressions == 900
     assert updated_fact.spend == Decimal("92.00")
     assert updated_fact.import_run_id == second.import_run_id
+    assert unchanged_fact.import_run_id == first.import_run_id
     assert fact_count == 3
+    with engine.connect() as connection:
+        refresh_state = connection.execute(select(warehouse_refresh_state)).one()
+    assert refresh_state.status == "current"
+    assert refresh_state.data_revision == refresh_state.refreshed_revision
 
 
 @pytest.mark.integration
@@ -231,7 +243,7 @@ class FailingProcessor(ImportProcessor):
         organization_id: UUID,
         run_id: UUID,
         records: list[CanonicalRecord],
-    ) -> None:
+    ) -> tuple[int, int, int]:
         super()._upsert_records(connection, organization_id, run_id, records)
         raise RuntimeError("forced load failure")
 

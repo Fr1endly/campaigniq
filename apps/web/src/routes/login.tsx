@@ -19,7 +19,11 @@ import { getSessionFn } from '@/lib/server-functions'
 export const Route = createFileRoute('/login')({
   beforeLoad: async () => {
     const session = await getSessionFn()
-    if (session) throw redirect({ to: '/overview', search: { range: '30d' } })
+    if (session)
+      throw redirect({
+        to: '/overview',
+        search: { range: '30d', trend: 'daily' },
+      })
   },
   head: () => ({ meta: [{ title: 'Sign in | CampaignIQ' }] }),
   component: LoginPage,

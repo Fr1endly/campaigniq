@@ -57,6 +57,14 @@ test('shows seeded overview data and changes reporting range', async ({
   await page.getByRole('radio', { name: '7 days' }).click()
   await expect(page).toHaveURL(/range=7d/)
   await expect(page.getByText(/Aug 21, 2026/)).toBeVisible()
+  await page.getByRole('radio', { name: '7-day avg' }).click()
+  await expect(page).toHaveURL(/trend=rolling7/)
+  await expect(
+    page.getByRole('heading', { name: 'Campaign momentum' }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('columnheader', { name: 'Movement' }),
+  ).toBeVisible()
 
   const overflow = await page.evaluate(
     () =>
@@ -105,13 +113,17 @@ test('uploads a CSV, processes it, and exposes its quality report', async ({
   if (await mobileMenu.isVisible()) await mobileMenu.click()
   await page.getByRole('link', { name: 'Imports' }).click()
   await expect(page.getByRole('heading', { name: 'Imports' })).toBeVisible()
+  await expect(
+    page.getByRole('region', { name: 'Warehouse status' }),
+  ).toBeVisible()
+  await expect(page.getByText('Reporting current')).toBeVisible()
 
   await page
     .getByLabel('Choose CSV file')
     .setInputFiles(
       resolve(
         import.meta.dirname,
-        '../../../services/etl/tests/fixtures/duplicate.csv',
+        './fixtures/duplicate.csv',
       ),
     )
   await page.getByRole('button', { name: 'Upload and process' }).click()
@@ -124,6 +136,7 @@ test('uploads a CSV, processes it, and exposes its quality report', async ({
     },
   )
   await expect(uploadPanel.getByText(/Loaded 2 rows; rejected 1/)).toBeVisible()
+  await expect(uploadPanel.getByText(/new,.*changed,.*unchanged/)).toBeVisible()
 
   const completedRow = page
     .getByRole('row')
@@ -131,6 +144,13 @@ test('uploads a CSV, processes it, and exposes its quality report', async ({
     .filter({ hasText: 'Completed' })
     .first()
   await expect(completedRow).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: 'New' })).toBeVisible()
+  await expect(
+    page.getByRole('columnheader', { name: 'Changed', exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('columnheader', { name: 'Unchanged' }),
+  ).toBeVisible()
   await completedRow.getByRole('link', { name: 'Inspect' }).click()
   await expect(
     page.getByRole('heading', { name: 'Data Quality' }),

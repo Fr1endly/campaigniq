@@ -1,6 +1,6 @@
 # CampaignIQ
 
-CampaignIQ is a marketing analytics SaaS demo built as a real product around a warehouse-oriented data model. The current product provides authenticated dashboards, direct CSV uploads to local S3-compatible storage, asynchronous Python ETL processing, import history, and data-quality reporting.
+CampaignIQ is a marketing analytics SaaS demo built as a real product around a warehouse-oriented data model. The current product provides authenticated dashboards, direct CSV uploads to local S3-compatible storage, asynchronous Python ETL processing, observable incremental loads, data-quality reporting, rolling campaign analytics, and measured aggregate refresh operations.
 
 ## Project documentation
 
@@ -8,6 +8,7 @@ CampaignIQ is a marketing analytics SaaS demo built as a real product around a w
 - [Milestone 1 delivery summary](./docs/MILESTONE_1.md)
 - [Milestone 2 delivery summary](./docs/MILESTONE_2.md)
 - [Milestone 3 delivery summary](./docs/MILESTONE_3.md)
+- [Milestone 5 delivery and benchmark summary](./docs/MILESTONE_5.md)
 - [Repository agent guide](./AGENTS.md)
 
 ## Stack
@@ -60,6 +61,7 @@ npm run test:e2e     # Playwright desktop and mobile flows
 npm run db:generate  # generate SQL after a Drizzle schema change
 npm run db:migrate   # apply committed migrations
 npm run db:seed      # seed or repair the deterministic demo data
+npm run db:benchmark # benchmark live and materialized warehouse queries
 npm run etl:load -- --file ./campaign.csv --organization-id <uuid>
 npm run etl:test     # Python unit and PostgreSQL integration tests
 ```
@@ -99,6 +101,7 @@ membership.
 
 ```text
 GET /api/health
+GET /api/health/ready
 GET /api/session
 GET /api/dashboard/summary?range=7d|30d|90d
 GET /api/campaigns?range=&search=&channel=&sort=&order=&page=&pageSize=
@@ -109,6 +112,8 @@ GET /api/imports/:id
 POST /api/imports/:id/process
 POST /api/imports/:id/upload-failed
 GET /api/imports/:id/issues
+GET /api/warehouse/status
+POST /api/warehouse/refresh
 ```
 
 Authentication endpoints are mounted under `/api/auth/*`.
@@ -126,7 +131,7 @@ services/
   etl/        Chunked Python CSV validation and warehouse loading
 ```
 
-Phase 5 advanced SQL and warehouse operations is the next milestone. Phase 4 AWS
-infrastructure is postponed and will later replace local MinIO and API process
-dispatch with S3 event processing in Lambda. Predictive insights remain a later
-milestone.
+Phase 5 advanced SQL and warehouse operations is complete. Phase 4 AWS
+infrastructure remains postponed and will later replace local MinIO and API
+process dispatch with S3 event processing in Lambda. Phase 6 predictive insights
+is next.

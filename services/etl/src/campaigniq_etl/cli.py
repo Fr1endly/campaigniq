@@ -7,6 +7,7 @@ from uuid import UUID
 from campaigniq_etl.config import ConfigurationError, get_database_url
 from campaigniq_etl.database import create_etl_engine
 from campaigniq_etl.pipeline import ImportProcessor, ImportSetupError
+from campaigniq_etl.refresh import AggregateRefresher
 
 
 def _positive_integer(value: str) -> int:
@@ -24,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
     load.add_argument("--organization-id", required=True, type=UUID)
     load.add_argument("--import-run-id", type=UUID)
     load.add_argument("--chunk-size", type=_positive_integer, default=10_000)
+    commands.add_parser("refresh-aggregates", help="refresh reporting aggregates")
     return parser
 
 
@@ -32,6 +34,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         engine = create_etl_engine(get_database_url())
         try:
+            if args.command == "refresh-aggregates":
+                refresh_result = AggregateRefresher(engine).refresh()
+                print(json.dumps(refresh_result, sort_keys=True))
+                return 0 if refresh_result["status"] != "failed" else 1
             result = ImportProcessor(engine, chunk_size=args.chunk_size).process(
                 file_path=args.file,
                 organization_id=args.organization_id,

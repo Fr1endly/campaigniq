@@ -14,9 +14,10 @@ Login -> dashboard -> upload CSV -> ETL processing -> load/reject summary
 ```
 
 The current repository implements the authenticated analytics dashboard, local
-Python CSV ETL, direct MinIO uploads, import APIs/screens, and data-quality
-reporting. Phase 5 advanced SQL and warehouse operations is next; Phase 4 AWS
-infrastructure is postponed, and ML remains a later milestone.
+Python CSV ETL, direct MinIO uploads, import APIs/screens, data-quality reporting,
+observable incremental outcomes, rolling/ranked product queries, materialized
+daily aggregates, and warehouse status reporting. Phase 4 AWS infrastructure is
+postponed; Phase 6 predictive insights is next.
 
 ## Project Documents
 
@@ -24,6 +25,7 @@ infrastructure is postponed, and ML remains a later milestone.
 - `docs/MILESTONE_1.md` is the dated record of the completed dashboard milestone.
 - `docs/MILESTONE_2.md` is the dated record of the completed local ETL milestone.
 - `docs/MILESTONE_3.md` is the dated record of the completed import-product milestone.
+- `docs/MILESTONE_5.md` is the dated record of advanced SQL and warehouse operations.
 - `README.md` is the concise setup and repository entry point.
 
 Keep implementation and these documents aligned when milestone scope or
@@ -109,6 +111,7 @@ npm run build        # production builds for all workspaces
 npm run db:generate  # generate a migration after a Drizzle schema change
 npm run db:migrate   # apply committed migrations
 npm run db:seed      # create deterministic demo data
+npm run db:benchmark # compare live and materialized warehouse query plans
 npm run etl:load -- --file <csv> --organization-id <uuid>
 npm run etl:test     # ETL unit and PostgreSQL integration tests
 ```
@@ -190,18 +193,18 @@ API/web services; its configuration can start or reuse the application servers.
 
 ## Next Approved Milestone
 
-Advance the local warehouse implementation through Phase 5:
+Advance CampaignIQ through Phase 6 predictive insights:
 
 ```text
-incremental loading -> advanced product queries -> measured aggregate strategy
-    -> refresh operations -> warehouse observability
+prediction target -> baseline evaluation -> persisted predictions
+    -> interpretable API and Insights UI
 ```
 
-Add explicit incremental-loading demonstrations, useful CTE and window-function
-queries, and refresh and observability strategies. Evaluate materialized views
-for expensive aggregates based on measured need. Phase 4 AWS deployment remains
-approved but postponed; preserve the current import API and ETL contracts so the
-later S3, Lambda, and RDS migration remains possible. ML remains last.
+Define a defensible prediction target and evaluation metric, persist model and
+prediction metadata, and expose interpretable results without presenting them as
+certainty. Phase 4 AWS deployment remains approved but postponed; preserve the
+current import, ETL, aggregate-refresh, and tenant contracts for the later S3,
+Lambda, and RDS migration.
 
 ## Git
 

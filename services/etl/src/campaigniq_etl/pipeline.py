@@ -1,11 +1,12 @@
 from collections import Counter
+from contextlib import suppress
 from datetime import date
 from pathlib import Path
 from time import monotonic
 from uuid import UUID
 
 import pandas as pd
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import delete, func, insert, select, text, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection, Engine
 
@@ -15,11 +16,14 @@ from campaigniq_etl.database import (
     import_runs,
     marketing_performance,
     organizations,
+    warehouse_refresh_state,
 )
 from campaigniq_etl.models import CanonicalRecord, ImportResult, RowIssue
+from campaigniq_etl.refresh import AGGREGATE_KEY, AggregateRefresher
 from campaigniq_etl.validation import read_csv_chunks, validate_record
 
 IssueKey = tuple[str, str | None]
+LoadCounts = tuple[int, int, int]
 
 
 class ImportSetupError(RuntimeError):
@@ -50,6 +54,9 @@ class ImportProcessor:
         received_rows = 0
         loaded_rows = 0
         rejected_rows = 0
+        inserted_rows = 0
+        updated_rows = 0
+        unchanged_rows = 0
 
         try:
             reader = read_csv_chunks(path, self.chunk_size)
@@ -57,16 +64,27 @@ class ImportProcessor:
             issue_counts: Counter[IssueKey] = Counter()
 
             with self.engine.begin() as connection:
+                connection.execute(
+                    text("select pg_advisory_xact_lock(hashtextextended(:organization_id, 0))"),
+                    {"organization_id": str(organization_id)},
+                )
                 for chunk in reader:
                     received_rows += len(chunk.index)
                     records, issues = self._validate_chunk(chunk, seen_keys)
                     issue_counts.update((issue.issue_type, issue.field) for issue in issues)
                     rejected_rows += len(issues)
                     loaded_rows += len(records)
-                    self._upsert_records(connection, organization_id, run_id, records)
+                    inserted, updated, unchanged = self._upsert_records(
+                        connection, organization_id, run_id, records
+                    )
+                    inserted_rows += inserted
+                    updated_rows += updated
+                    unchanged_rows += unchanged
 
                 if received_rows != loaded_rows + rejected_rows:
                     raise RuntimeError("import row counts did not reconcile")
+                if loaded_rows != inserted_rows + updated_rows + unchanged_rows:
+                    raise RuntimeError("import load outcomes did not reconcile")
 
                 duration_ms = _duration_ms(started)
                 self._replace_issues(connection, run_id, issue_counts)
@@ -81,18 +99,35 @@ class ImportProcessor:
                         received_rows=received_rows,
                         loaded_rows=loaded_rows,
                         rejected_rows=rejected_rows,
+                        inserted_rows=inserted_rows,
+                        updated_rows=updated_rows,
+                        unchanged_rows=unchanged_rows,
                         completed_at=func.now(),
                         duration_ms=duration_ms,
                         error_message=None,
                     )
                 )
+                connection.execute(
+                    update(warehouse_refresh_state)
+                    .where(warehouse_refresh_state.c.aggregate_key == AGGREGATE_KEY)
+                    .values(
+                        status="stale",
+                        data_revision=warehouse_refresh_state.c.data_revision + 1,
+                        error_message=None,
+                    )
+                )
 
+            with suppress(Exception):
+                AggregateRefresher(self.engine).refresh()
             return ImportResult(
                 import_run_id=run_id,
                 status="completed",
                 received_rows=received_rows,
                 loaded_rows=loaded_rows,
                 rejected_rows=rejected_rows,
+                inserted_rows=inserted_rows,
+                updated_rows=updated_rows,
+                unchanged_rows=unchanged_rows,
                 duration_ms=duration_ms,
             )
         except Exception as error:
@@ -105,6 +140,9 @@ class ImportProcessor:
                 received_rows=received_rows,
                 loaded_rows=0,
                 rejected_rows=0,
+                inserted_rows=None,
+                updated_rows=None,
+                unchanged_rows=None,
                 duration_ms=duration_ms,
                 error_message=message,
             )
@@ -154,6 +192,9 @@ class ImportProcessor:
                         received_rows=existing_run.received_rows,
                         loaded_rows=existing_run.loaded_rows,
                         rejected_rows=existing_run.rejected_rows,
+                        inserted_rows=existing_run.inserted_rows,
+                        updated_rows=existing_run.updated_rows,
+                        unchanged_rows=existing_run.unchanged_rows,
                         duration_ms=existing_run.duration_ms or 0,
                     )
 
@@ -171,6 +212,9 @@ class ImportProcessor:
                     received_rows=0,
                     loaded_rows=0,
                     rejected_rows=0,
+                    inserted_rows=None,
+                    updated_rows=None,
+                    unchanged_rows=None,
                     started_at=func.now(),
                     completed_at=None,
                     duration_ms=None,
@@ -205,9 +249,9 @@ class ImportProcessor:
         organization_id: UUID,
         run_id: UUID,
         records: list[CanonicalRecord],
-    ) -> None:
+    ) -> LoadCounts:
         if not records:
-            return
+            return (0, 0, 0)
 
         campaign_rows: dict[tuple[str, str], dict[str, object]] = {}
         for record in records:
@@ -247,24 +291,66 @@ class ImportProcessor:
             }
             for record in records
         ]
-        fact_insert = pg_insert(marketing_performance).values(fact_rows)
-        connection.execute(
-            fact_insert.on_conflict_do_update(
-                index_elements=[
-                    marketing_performance.c.organization_id,
+
+        existing_rows = connection.execute(
+            select(
+                marketing_performance.c.campaign_id,
+                marketing_performance.c.date,
+                marketing_performance.c.impressions,
+                marketing_performance.c.clicks,
+                marketing_performance.c.conversions,
+                marketing_performance.c.spend,
+                marketing_performance.c.revenue,
+            ).where(
+                marketing_performance.c.organization_id == organization_id,
+                tuple_(
                     marketing_performance.c.campaign_id,
                     marketing_performance.c.date,
-                ],
-                set_={
-                    "import_run_id": fact_insert.excluded.import_run_id,
-                    "impressions": fact_insert.excluded.impressions,
-                    "clicks": fact_insert.excluded.clicks,
-                    "conversions": fact_insert.excluded.conversions,
-                    "spend": fact_insert.excluded.spend,
-                    "revenue": fact_insert.excluded.revenue,
-                },
+                ).in_([(row["campaign_id"], row["date"]) for row in fact_rows]),
             )
-        )
+        ).all()
+        existing_by_key = {(row.campaign_id, row.date): row for row in existing_rows}
+        inserted_rows: list[dict[str, object]] = []
+        updated_rows: list[dict[str, object]] = []
+        unchanged_count = 0
+        for row in fact_rows:
+            existing = existing_by_key.get((row["campaign_id"], row["date"]))
+            if existing is None:
+                inserted_rows.append(row)
+                continue
+            values_match = (
+                existing.impressions == row["impressions"]
+                and existing.clicks == row["clicks"]
+                and existing.conversions == row["conversions"]
+                and existing.spend == row["spend"]
+                and existing.revenue == row["revenue"]
+            )
+            if values_match:
+                unchanged_count += 1
+            else:
+                updated_rows.append(row)
+
+        changed_rows = inserted_rows + updated_rows
+        if changed_rows:
+            fact_insert = pg_insert(marketing_performance).values(changed_rows)
+            connection.execute(
+                fact_insert.on_conflict_do_update(
+                    index_elements=[
+                        marketing_performance.c.organization_id,
+                        marketing_performance.c.campaign_id,
+                        marketing_performance.c.date,
+                    ],
+                    set_={
+                        "import_run_id": fact_insert.excluded.import_run_id,
+                        "impressions": fact_insert.excluded.impressions,
+                        "clicks": fact_insert.excluded.clicks,
+                        "conversions": fact_insert.excluded.conversions,
+                        "spend": fact_insert.excluded.spend,
+                        "revenue": fact_insert.excluded.revenue,
+                    },
+                )
+            )
+        return (len(inserted_rows), len(updated_rows), unchanged_count)
 
     def _replace_issues(
         self,
@@ -309,6 +395,9 @@ class ImportProcessor:
                     received_rows=received_rows,
                     loaded_rows=0,
                     rejected_rows=0,
+                    inserted_rows=None,
+                    updated_rows=None,
+                    unchanged_rows=None,
                     completed_at=func.now(),
                     duration_ms=duration_ms,
                     error_message=message,

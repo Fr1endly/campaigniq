@@ -4,6 +4,7 @@ import type {
   CampaignDetailResponse,
   CampaignListQuery,
   CampaignListResponse,
+  CampaignMomentum,
   CampaignPerformance,
   DashboardSummary,
   RangePreset,
@@ -44,11 +45,20 @@ type PerformanceRow = {
   totalCount?: string;
 };
 
+type MomentumRow = PerformanceRow & {
+  currentRank: string;
+  previousRank: string | null;
+  previousRevenue: string;
+};
+
 @Injectable()
 export class AnalyticsService {
   constructor(@InjectDatabase() private readonly db: Database) {}
 
-  async getDashboard(organizationId: string, preset: RangePreset): Promise<DashboardSummary> {
+  async getDashboard(
+    organizationId: string,
+    preset: RangePreset,
+  ): Promise<DashboardSummary> {
     const range = await this.getDateRange(organizationId, preset);
     const [totals, trend, topCampaigns] = await Promise.all([
       this.getTotals(organizationId, range),
@@ -187,12 +197,41 @@ export class AnalyticsService {
       where organization_id = ${organizationId}
     `);
     const dataAsOf = result.rows[0]?.dataAsOf;
-    if (!dataAsOf) throw new NotFoundException('No performance data is available');
+    if (!dataAsOf)
+      throw new NotFoundException('No performance data is available');
     return createDateRange(dataAsOf, preset);
   }
 
-  private async getTotals(organizationId: string, range: DateRange, campaignId?: string) {
+  private async getTotals(
+    organizationId: string,
+    range: DateRange,
+    campaignId?: string,
+  ) {
     const result = await this.db.execute<TotalsRow>(sql`
+      with aggregate_current as (
+        select exists (
+          select 1
+          from warehouse_refresh_state
+          where aggregate_key = 'organization_daily_performance'
+            and status = 'current'
+            and data_revision = refreshed_revision
+        ) as value
+      ), source as (
+        select date, impressions, clicks, conversions, spend, revenue
+        from organization_daily_performance
+        where organization_id = ${organizationId}
+          and ${campaignId ?? ''} = ''
+          and (select value from aggregate_current)
+        union all
+        select date, impressions, clicks, conversions, spend, revenue
+        from marketing_performance
+        where organization_id = ${organizationId}
+          and (${campaignId ?? ''} = '' or campaign_id = nullif(${campaignId ?? ''}, '')::uuid)
+          and (
+            ${campaignId ?? ''} <> ''
+            or not (select value from aggregate_current)
+          )
+      )
       select
         coalesce(sum(impressions) filter (where date between ${range.startDate}::date and ${range.endDate}::date), 0)::text as "currentImpressions",
         coalesce(sum(clicks) filter (where date between ${range.startDate}::date and ${range.endDate}::date), 0)::text as "currentClicks",
@@ -204,10 +243,8 @@ export class AnalyticsService {
         coalesce(sum(conversions) filter (where date between ${range.comparisonStartDate}::date and ${range.comparisonEndDate}::date), 0)::text as "previousConversions",
         coalesce(sum(spend) filter (where date between ${range.comparisonStartDate}::date and ${range.comparisonEndDate}::date), 0)::text as "previousSpend",
         coalesce(sum(revenue) filter (where date between ${range.comparisonStartDate}::date and ${range.comparisonEndDate}::date), 0)::text as "previousRevenue"
-      from marketing_performance
-      where organization_id = ${organizationId}
-        and date between ${range.comparisonStartDate}::date and ${range.endDate}::date
-        and (${campaignId ?? ''} = '' or campaign_id = nullif(${campaignId ?? ''}, '')::uuid)
+      from source
+      where date between ${range.comparisonStartDate}::date and ${range.endDate}::date
     `);
     const row = result.rows[0];
     return {
@@ -216,27 +253,87 @@ export class AnalyticsService {
     };
   }
 
-  private async getTrend(organizationId: string, range: DateRange, campaignId?: string) {
-    const result = await this.db.execute<{ date: string; revenue: string; spend: string }>(sql`
+  private async getTrend(
+    organizationId: string,
+    range: DateRange,
+    campaignId?: string,
+  ) {
+    const result = await this.db.execute<{
+      date: string;
+      revenue: string;
+      spend: string;
+      rollingRevenue: string;
+      rollingSpend: string;
+    }>(sql`
       with days as (
-        select generate_series(${range.startDate}::date, ${range.endDate}::date, interval '1 day')::date as day
+        select generate_series(
+          ${range.startDate}::date - interval '6 days',
+          ${range.endDate}::date,
+          interval '1 day'
+        )::date as day
+      ), aggregate_current as (
+        select exists (
+          select 1
+          from warehouse_refresh_state
+          where aggregate_key = 'organization_daily_performance'
+            and status = 'current'
+            and data_revision = refreshed_revision
+        ) as value
+      ), source as (
+        select date, spend, revenue
+        from organization_daily_performance
+        where organization_id = ${organizationId}
+          and ${campaignId ?? ''} = ''
+          and (select value from aggregate_current)
+        union all
+        select date, spend, revenue
+        from marketing_performance
+        where organization_id = ${organizationId}
+          and (${campaignId ?? ''} = '' or campaign_id = nullif(${campaignId ?? ''}, '')::uuid)
+          and (
+            ${campaignId ?? ''} <> ''
+            or not (select value from aggregate_current)
+          )
+      ), daily as (
+        select
+          days.day,
+          coalesce(sum(mp.revenue), 0)::numeric as revenue,
+          coalesce(sum(mp.spend), 0)::numeric as spend
+        from days
+        left join source mp
+          on mp.date = days.day
+        group by days.day
+      ), rolling as (
+        select
+          day,
+          revenue,
+          spend,
+          avg(revenue) over (
+            order by day rows between 6 preceding and current row
+          ) as "rollingRevenue",
+          avg(spend) over (
+            order by day rows between 6 preceding and current row
+          ) as "rollingSpend"
+        from daily
       )
       select
-        days.day::text as date,
-        coalesce(sum(mp.revenue), 0)::numeric(14,2)::text as revenue,
-        coalesce(sum(mp.spend), 0)::numeric(14,2)::text as spend
-      from days
-      left join marketing_performance mp
-        on mp.date = days.day
-        and mp.organization_id = ${organizationId}
-        and (${campaignId ?? ''} = '' or mp.campaign_id = nullif(${campaignId ?? ''}, '')::uuid)
-      group by days.day
-      order by days.day
+        day::text as date,
+        revenue::numeric(14,2)::text as revenue,
+        spend::numeric(14,2)::text as spend,
+        "rollingRevenue"::numeric(14,2)::text as "rollingRevenue",
+        "rollingSpend"::numeric(14,2)::text as "rollingSpend"
+      from rolling
+      where day between ${range.startDate}::date and ${range.endDate}::date
+      order by day
     `);
     return result.rows;
   }
 
-  private async getDaily(organizationId: string, range: DateRange, campaignId: string) {
+  private async getDaily(
+    organizationId: string,
+    range: DateRange,
+    campaignId: string,
+  ) {
     const result = await this.db.execute<{
       date: string;
       impressions: string;
@@ -283,31 +380,60 @@ export class AnalyticsService {
   }
 
   private async getTopCampaigns(organizationId: string, range: DateRange) {
-    const result = await this.db.execute<PerformanceRow>(sql`
-      select
-        c.id,
-        c.external_id as "externalId",
-        c.name,
-        c.channel,
-        coalesce(sum(mp.impressions), 0)::bigint as impressions,
-        coalesce(sum(mp.clicks), 0)::bigint as clicks,
-        coalesce(sum(mp.conversions), 0)::bigint as conversions,
-        coalesce(sum(mp.spend), 0)::numeric(14,2) as spend,
-        coalesce(sum(mp.revenue), 0)::numeric(14,2) as revenue
-      from campaigns c
-      left join marketing_performance mp
-        on mp.campaign_id = c.id
-        and mp.organization_id = c.organization_id
-        and mp.date between ${range.startDate}::date and ${range.endDate}::date
-      where c.organization_id = ${organizationId}
-      group by c.id
-      order by revenue desc
+    const result = await this.db.execute<MomentumRow>(sql`
+      with performance as (
+        select
+          c.id,
+          c.external_id as "externalId",
+          c.name,
+          c.channel,
+          coalesce(sum(mp.impressions) filter (
+            where mp.date between ${range.startDate}::date and ${range.endDate}::date
+          ), 0)::bigint as impressions,
+          coalesce(sum(mp.clicks) filter (
+            where mp.date between ${range.startDate}::date and ${range.endDate}::date
+          ), 0)::bigint as clicks,
+          coalesce(sum(mp.conversions) filter (
+            where mp.date between ${range.startDate}::date and ${range.endDate}::date
+          ), 0)::bigint as conversions,
+          coalesce(sum(mp.spend) filter (
+            where mp.date between ${range.startDate}::date and ${range.endDate}::date
+          ), 0)::numeric(14,2) as spend,
+          coalesce(sum(mp.revenue) filter (
+            where mp.date between ${range.startDate}::date and ${range.endDate}::date
+          ), 0)::numeric(14,2) as revenue,
+          coalesce(sum(mp.revenue) filter (
+            where mp.date between ${range.comparisonStartDate}::date and ${range.comparisonEndDate}::date
+          ), 0)::numeric(14,2) as "previousRevenue"
+        from campaigns c
+        left join marketing_performance mp
+          on mp.campaign_id = c.id
+          and mp.organization_id = c.organization_id
+          and mp.date between ${range.comparisonStartDate}::date and ${range.endDate}::date
+        where c.organization_id = ${organizationId}
+        group by c.id
+      ), ranked as (
+        select
+          *,
+          dense_rank() over (order by revenue desc)::text as "currentRank",
+          case
+            when "previousRevenue" = 0 then null
+            else dense_rank() over (order by "previousRevenue" desc)::text
+          end as "previousRank"
+        from performance
+      )
+      select *
+      from ranked
+      order by revenue desc, name asc
       limit 5
     `);
-    return result.rows.map((row) => this.mapPerformanceRow(row));
+    return result.rows.map((row) => this.mapMomentumRow(row));
   }
 
-  private totalsFromRow(row: TotalsRow, prefix: 'current' | 'previous'): Totals {
+  private totalsFromRow(
+    row: TotalsRow,
+    prefix: 'current' | 'previous',
+  ): Totals {
     const key = (name: string) => `${prefix}${name}` as keyof TotalsRow;
     return {
       impressions: Number(row[key('Impressions')]),
@@ -338,6 +464,25 @@ export class AnalyticsService {
       spend: totals.spend.toFixed(2),
       revenue: totals.revenue.toFixed(2),
       ...metrics,
+    };
+  }
+
+  private mapMomentumRow(row: MomentumRow): CampaignMomentum {
+    const performance = this.mapPerformanceRow(row);
+    const currentRank = Number(row.currentRank);
+    const previousRank =
+      row.previousRank === null ? null : Number(row.previousRank);
+    const currentRevenue = Number(row.revenue);
+    const previousRevenue = Number(row.previousRevenue);
+    return {
+      ...performance,
+      currentRank,
+      previousRank,
+      rankChange: previousRank === null ? null : previousRank - currentRank,
+      revenueChange:
+        previousRevenue === 0
+          ? null
+          : ((currentRevenue - previousRevenue) / previousRevenue) * 100,
     };
   }
 }

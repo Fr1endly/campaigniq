@@ -6,11 +6,11 @@ This document preserves the approved CampaignIQ product and engineering plan.
 TanStack Start is the frontend framework; references to Next.js in the earliest
 design draft were superseded before implementation.
 
-Milestones 1 through 3 are complete: the repository provides the authenticated
+Milestones 1, 2, 3, and 5 are complete: the repository provides the authenticated
 analytics dashboard, local CSV ETL pipeline, direct object-storage upload flow,
-import operations, and data-quality reporting. Phase 4 AWS deployment is
-postponed; Phase 5 advanced SQL and warehouse operations is the next approved
-milestone.
+import operations, data-quality reporting, observable incremental loading,
+advanced product SQL, and measured aggregate refresh operations. Phase 4 AWS
+deployment is postponed; Phase 6 predictive insights is next.
 
 ## Product Vision
 
@@ -380,12 +380,14 @@ operations work.
 - Add deployment configuration, least-privilege IAM, monitoring, and failure
   handling.
 
-### Phase 5: Advanced SQL and Warehouse Operations - Next
+### Phase 5: Advanced SQL and Warehouse Operations - Complete
 
 - Add explicit incremental-loading demonstrations.
 - Use CTEs and window functions for useful product queries.
 - Evaluate materialized views for expensive aggregates.
 - Add refresh and observability strategies based on measured need.
+
+See [MILESTONE_5.md](./MILESTONE_5.md) for the delivery and benchmark record.
 
 ### Phase 6: Predictive Insights
 

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import {
   campaigns,
   dataQualityIssues,
@@ -9,6 +9,7 @@ import {
   organization,
   session,
   user,
+  warehouseRefreshState,
 } from '@campaign-iq/database/schema';
 import { databaseConnection } from './database.js';
 import { createCampaignIqAuth } from '../auth/auth.js';
@@ -73,7 +74,10 @@ async function seedAuth() {
     .select()
     .from(member)
     .where(
-      and(eq(member.userId, userId), eq(member.organizationId, ORGANIZATION_ID)),
+      and(
+        eq(member.userId, userId),
+        eq(member.organizationId, ORGANIZATION_ID),
+      ),
     )
     .limit(1);
   if (!existingMembership) {
@@ -101,6 +105,9 @@ async function seedAnalytics() {
       receivedRows: 2198,
       loadedRows: 2160,
       rejectedRows: 38,
+      insertedRows: 2160,
+      updatedRows: 0,
+      unchangedRows: 0,
       startedAt: new Date('2026-08-27T12:00:00.000Z'),
       completedAt: new Date('2026-08-27T12:00:18.430Z'),
       durationMs: 18430,
@@ -108,44 +115,62 @@ async function seedAnalytics() {
     })
     .onConflictDoUpdate({
       target: importRuns.id,
-      set: { loadedRows: 2160, rejectedRows: 38, status: 'completed' },
+      set: {
+        loadedRows: 2160,
+        rejectedRows: 38,
+        insertedRows: 2160,
+        updatedRows: 0,
+        unchangedRows: 0,
+        status: 'completed',
+      },
     });
 
-  const campaignRows = campaignSeed.map(([externalId, name, channel], index) => ({
-    id: `30000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
-    organizationId: ORGANIZATION_ID,
-    externalId,
-    name,
-    channel,
-    createdAt: new Date('2026-03-01T12:00:00.000Z'),
-    updatedAt: new Date('2026-08-27T12:00:00.000Z'),
-  }));
+  const campaignRows = campaignSeed.map(
+    ([externalId, name, channel], index) => ({
+      id: `30000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+      organizationId: ORGANIZATION_ID,
+      externalId,
+      name,
+      channel,
+      createdAt: new Date('2026-03-01T12:00:00.000Z'),
+      updatedAt: new Date('2026-08-27T12:00:00.000Z'),
+    }),
+  );
 
   for (const row of campaignRows) {
     await databaseConnection.db
       .insert(campaigns)
       .values(row)
       .onConflictDoUpdate({
-        target: [campaigns.organizationId, campaigns.externalId, campaigns.channel],
+        target: [
+          campaigns.organizationId,
+          campaigns.externalId,
+          campaigns.channel,
+        ],
         set: { name: row.name, updatedAt: row.updatedAt },
       });
   }
 
   const performanceRows = campaignSeed.flatMap((campaign, campaignIndex) => {
-    const [, , , baseImpressions, baseCtr, baseCvr, baseCpc, baseOrderValue] = campaign;
+    const [, , , baseImpressions, baseCtr, baseCvr, baseCpc, baseOrderValue] =
+      campaign;
     return Array.from({ length: 180 }, (_, dayIndex) => {
       const growth = 0.88 + dayIndex * 0.00145;
       const weekly = 1 + Math.sin((dayIndex + campaignIndex * 2) / 7) * 0.09;
       const monthly = 1 + Math.cos((dayIndex + campaignIndex) / 22) * 0.055;
-      const impressions = Math.round(baseImpressions * growth * weekly * monthly);
-      const ctr = baseCtr * (0.94 + dayIndex * 0.0007 + Math.sin(dayIndex / 11) * 0.025);
+      const impressions = Math.round(
+        baseImpressions * growth * weekly * monthly,
+      );
+      const ctr =
+        baseCtr * (0.94 + dayIndex * 0.0007 + Math.sin(dayIndex / 11) * 0.025);
       const clicks = Math.min(impressions, Math.round(impressions * ctr));
       const conversions = Math.min(
         clicks,
         Math.round(clicks * baseCvr * (0.91 + dayIndex * 0.00085)),
       );
       const spend = clicks * baseCpc * (0.96 + Math.cos(dayIndex / 9) * 0.035);
-      const revenue = conversions * baseOrderValue * (0.97 + Math.sin(dayIndex / 13) * 0.045);
+      const revenue =
+        conversions * baseOrderValue * (0.97 + Math.sin(dayIndex / 13) * 0.045);
 
       return {
         organizationId: ORGANIZATION_ID,
@@ -179,10 +204,51 @@ async function seedAnalytics() {
     .delete(dataQualityIssues)
     .where(eq(dataQualityIssues.importRunId, IMPORT_RUN_ID));
   await databaseConnection.db.insert(dataQualityIssues).values([
-    { importRunId: IMPORT_RUN_ID, issueType: 'missing_required_value', field: 'campaign_id', count: 18 },
-    { importRunId: IMPORT_RUN_ID, issueType: 'duplicate_record', field: null, count: 12 },
-    { importRunId: IMPORT_RUN_ID, issueType: 'clicks_exceed_impressions', field: 'clicks', count: 8 },
+    {
+      importRunId: IMPORT_RUN_ID,
+      issueType: 'missing_required_value',
+      field: 'campaign_id',
+      count: 18,
+    },
+    {
+      importRunId: IMPORT_RUN_ID,
+      issueType: 'duplicate_record',
+      field: null,
+      count: 12,
+    },
+    {
+      importRunId: IMPORT_RUN_ID,
+      issueType: 'clicks_exceed_impressions',
+      field: 'clicks',
+      count: 8,
+    },
   ]);
+
+  const [staleState] = await databaseConnection.db
+    .update(warehouseRefreshState)
+    .set({
+      status: 'stale',
+      dataRevision: sql`${warehouseRefreshState.dataRevision} + 1`,
+      errorMessage: null,
+    })
+    .where(
+      eq(warehouseRefreshState.aggregateKey, 'organization_daily_performance'),
+    )
+    .returning();
+  await databaseConnection.db.execute(
+    sql`refresh materialized view organization_daily_performance`,
+  );
+  await databaseConnection.db
+    .update(warehouseRefreshState)
+    .set({
+      status: 'current',
+      refreshedRevision: staleState.dataRevision,
+      completedAt: new Date(),
+      errorMessage: null,
+    })
+    .where(
+      eq(warehouseRefreshState.aggregateKey, 'organization_daily_performance'),
+    );
 }
 
 try {
